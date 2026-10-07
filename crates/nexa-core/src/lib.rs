@@ -4,10 +4,14 @@
 //! persistence, settings, the download engines, the queue/manager and the
 //! browser-integration protocol. It is fully testable headless.
 
+pub mod bridge;
+pub mod browser;
 pub mod db;
 pub mod detector;
 pub mod engines;
 pub mod manager;
+pub mod paths;
+pub mod protocol;
 pub mod error;
 pub mod ratelimit;
 pub mod scheduler;

@@ -265,6 +265,7 @@ pub struct Download {
     pub engine: EngineKind,
     pub status: DownloadStatus,
     pub priority: Priority,
+    #[ts(type = "number")]
     pub queue_position: i64,
     #[ts(type = "number | null")]
     pub total_bytes: Option<u64>,

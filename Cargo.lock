@@ -2044,6 +2044,13 @@ version = "1.0.0"
 [[package]]
 name = "nexa-native-host"
 version = "1.0.0"
+dependencies = [
+ "axum 0.7.9",
+ "nexa-core",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
 
 [[package]]
 name = "nix"

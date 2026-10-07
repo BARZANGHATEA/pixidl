@@ -44,6 +44,7 @@ pub struct Category {
     pub extensions: String,
     pub subfolder: String,
     pub builtin: bool,
+    #[ts(type = "number")]
     pub sort_order: i64,
 }
 
