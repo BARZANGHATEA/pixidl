@@ -1,0 +1,5 @@
+[package]
+name = "nexa-download-manager"
+version.workspace = true
+edition.workspace = true
+[dependencies]

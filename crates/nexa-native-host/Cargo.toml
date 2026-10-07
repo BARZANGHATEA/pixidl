@@ -1,0 +1,5 @@
+[package]
+name = "nexa-native-host"
+version.workspace = true
+edition.workspace = true
+[dependencies]
