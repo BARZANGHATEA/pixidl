@@ -29,7 +29,7 @@ pub fn validate_url(input: &str) -> Result<url::Url> {
     let url = url::Url::parse(input).map_err(|e| DownloadError::invalid_url("Invalid URL").with_detail(e.to_string()))?;
     match url.scheme() {
         "http" | "https" | "ftp" => {
-            if url.host_str().map_or(true, |h| h.is_empty()) {
+            if url.host_str().is_none_or(|h| h.is_empty()) {
                 return Err(DownloadError::invalid_url("URL has no host"));
             }
             Ok(url)
@@ -53,7 +53,7 @@ pub fn validate_url(input: &str) -> Result<url::Url> {
 /// - limits length while keeping the extension
 pub fn sanitize_filename(name: &str) -> String {
     // Keep only the last path component, whichever separator was used.
-    let last = name.rsplit(|c| c == '/' || c == '\\').next().unwrap_or("");
+    let last = name.rsplit(['/', '\\']).next().unwrap_or("");
     let mut s: String = last
         .chars()
         .map(|c| match c {
@@ -116,7 +116,7 @@ pub fn extension_of(name: &str) -> String {
 
 /// Derives a filename from the URL path (percent-decoded).
 pub fn filename_from_url(url: &url::Url) -> Option<String> {
-    let seg = url.path_segments()?.filter(|s| !s.is_empty()).last()?;
+    let seg = url.path_segments()?.rfind(|s| !s.is_empty())?;
     let decoded = percent_encoding::percent_decode_str(seg).decode_utf8_lossy().to_string();
     let clean = sanitize_filename(&decoded);
     (clean != "download" || decoded == "download").then_some(clean)

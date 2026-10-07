@@ -232,7 +232,7 @@ pub fn build_presets(formats: &[VideoFormat], ffmpeg: bool) -> Vec<FormatPreset>
     let size_for = |h: Option<u32>| -> Option<u64> {
         let v = formats
             .iter()
-            .filter(|f| f.has_video && h.map_or(true, |h| f.height.map_or(false, |fh| fh <= h)) && (ffmpeg || f.has_audio))
+            .filter(|f| f.has_video && h.is_none_or(|h| f.height.is_some_and(|fh| fh <= h)) && (ffmpeg || f.has_audio))
             .max_by_key(|f| (f.height.unwrap_or(0), f.filesize.unwrap_or(0)))?;
         let vs = v.filesize?;
         Some(if v.has_audio { vs } else { vs + best_audio_size.unwrap_or(0) })

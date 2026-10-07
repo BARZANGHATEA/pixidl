@@ -345,8 +345,7 @@ mod tests {
 
     #[test]
     fn rejects_bad_values() {
-        let mut s = Settings::default();
-        s.accent_color = "red".into();
+        let mut s = Settings { accent_color: "red".into(), ..Default::default() };
         s.schedule.start_time = "25:00".into();
         s.proxy_mode = ProxyMode::Manual;
         s.proxy_url = "socks5://user:pw@127.0.0.1:1080".into();

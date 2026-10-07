@@ -152,7 +152,7 @@ impl DownloadManager {
                 tick.tick().await;
                 let Some(inner) = weak.upgrade() else { break };
                 n += 1;
-                inner.sample_progress(n % 6 == 0);
+                inner.sample_progress(n.is_multiple_of(6));
             }
         });
     }
@@ -569,13 +569,10 @@ impl Inner {
             }
         }
         let d = self.require(id)?;
-        match (d.status, intent) {
-            (DownloadStatus::Queued, Intent::Pause) => {
-                self.retry_at.lock().remove(id);
-                self.transition(id, DownloadStatus::Paused, |_| {})?;
-                self.db.add_event(id, "paused", None)?;
-            }
-            _ => {}
+        if let (DownloadStatus::Queued, Intent::Pause) = (d.status, intent) {
+            self.retry_at.lock().remove(id);
+            self.transition(id, DownloadStatus::Paused, |_| {})?;
+            self.db.add_event(id, "paused", None)?;
         }
         Ok(())
     }
@@ -905,7 +902,7 @@ impl Inner {
                     continue;
                 }
             }
-            if self.retry_at.lock().get(&d.id).map_or(false, |t| *t > Instant::now()) {
+            if self.retry_at.lock().get(&d.id).is_some_and(|t| *t > Instant::now()) {
                 waiting += 1;
                 continue;
             }

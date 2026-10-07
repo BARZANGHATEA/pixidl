@@ -30,6 +30,9 @@ impl Segment {
     pub fn len(&self) -> u64 {
         self.end_incl - self.start + 1
     }
+    pub fn is_empty(&self) -> bool {
+        self.end_incl < self.start
+    }
     pub fn is_done(&self) -> bool {
         self.downloaded >= self.len()
     }

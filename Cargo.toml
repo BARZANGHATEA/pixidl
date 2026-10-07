@@ -19,3 +19,10 @@ strip = true
 # the UDP tracker socket on systems without IPv6. See third_party/README.md.
 [patch.crates-io]
 librqbit-tracker-comms = { path = "third_party/librqbit-tracker-comms" }
+
+# Keep debug builds small: full debug info for our crates only.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

@@ -103,7 +103,7 @@ impl DownloadError {
             ErrorKind::NetworkUnavailable | ErrorKind::Timeout => true,
             ErrorKind::ServerRejected => {
                 // Retry 5xx / 429 but not 401/403.
-                self.detail.as_deref().map_or(false, |d| {
+                self.detail.as_deref().is_some_and(|d| {
                     d.contains("HTTP status 5") || d.contains("HTTP status 429")
                 })
             }

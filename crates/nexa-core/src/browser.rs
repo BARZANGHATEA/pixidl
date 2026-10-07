@@ -219,8 +219,8 @@ pub fn status(host_path: &Path) -> Vec<BrowserRegistration> {
         .iter()
         .map(|&b| {
             let found = manifest_path_for(b);
-            let ok = found.as_ref().and_then(|p| std::fs::read(p).ok()).and_then(|d| serde_json::from_slice::<serde_json::Value>(&d).ok()).map_or(false, |v| {
-                v.get("path").and_then(|p| p.as_str()).map_or(false, |p| Path::new(p) == host_path) && host_path.exists()
+            let ok = found.as_ref().and_then(|p| std::fs::read(p).ok()).and_then(|d| serde_json::from_slice::<serde_json::Value>(&d).ok()).is_some_and(|v| {
+                v.get("path").and_then(|p| p.as_str()).is_some_and(|p| Path::new(p) == host_path) && host_path.exists()
             });
             BrowserRegistration {
                 browser: b,

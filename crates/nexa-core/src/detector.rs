@@ -44,7 +44,7 @@ pub fn detect(input: &str) -> Result<(url::Url, EngineKind)> {
     if url.scheme() == "magnet" {
         return Ok((url, EngineKind::Torrent));
     }
-    let last = url.path_segments().and_then(|s| s.filter(|x| !x.is_empty()).last()).unwrap_or("").to_ascii_lowercase();
+    let last = url.path_segments().and_then(|mut s| s.rfind(|x| !x.is_empty())).unwrap_or("").to_ascii_lowercase();
     let ext = security::extension_of(&last);
     if ext == "torrent" {
         return Ok((url, EngineKind::Torrent));

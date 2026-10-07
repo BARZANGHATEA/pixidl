@@ -134,7 +134,7 @@ fn header_str(h: &HeaderMap, name: header::HeaderName) -> Option<String> {
 }
 
 fn accepts_ranges(h: &HeaderMap) -> bool {
-    header_str(h, header::ACCEPT_RANGES).map_or(false, |v| v.to_ascii_lowercase().contains("bytes"))
+    header_str(h, header::ACCEPT_RANGES).is_some_and(|v| v.to_ascii_lowercase().contains("bytes"))
 }
 
 /// `Content-Range: bytes 0-0/12345` → 12345
@@ -274,7 +274,7 @@ async fn run(mut ctx: JobContext) -> Result<EngineOutcome> {
     let resume_from = if segments.is_empty() { part_len } else { 0 };
 
     let mut req = request(&ctx.http, &d.url, d.referrer.as_deref()).header(header::RANGE, format!("bytes={resume_from}-"));
-    let has_validator = validators.etag.as_deref().map_or(false, usable_etag) || validators.last_modified.is_some();
+    let has_validator = validators.etag.as_deref().is_some_and(usable_etag) || validators.last_modified.is_some();
     if resume_from > 0 || !segments.is_empty() {
         if let Some(etag) = validators.etag.as_deref().filter(|e| usable_etag(e)) {
             req = req.header(header::IF_RANGE, etag);
@@ -362,7 +362,7 @@ async fn run(mut ctx: JobContext) -> Result<EngineOutcome> {
     let conns = d.engine_options.connections.unwrap_or(ctx.settings.connections_per_download).clamp(1, 16);
     let use_multi = is_partial
         && conns > 1
-        && total.map_or(false, |t| t >= MULTI_CONNECTION_THRESHOLD)
+        && total.is_some_and(|t| t >= MULTI_CONNECTION_THRESHOLD)
         && (resume_from == 0 || !segments.is_empty());
 
     ctx.send_meta(MetaUpdate {

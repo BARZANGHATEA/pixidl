@@ -62,7 +62,7 @@ pub struct TorrentFilePreview {
 #[tauri::command]
 pub async fn read_torrent_file(state: State<'_, AppState>, path: String) -> CmdResult<TorrentFilePreview> {
     let p = PathBuf::from(&path);
-    if !p.extension().map_or(false, |e| e.eq_ignore_ascii_case("torrent")) {
+    if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("torrent")) {
         return Err(CommandError::msg(ErrorKind::InvalidUrl, "Please choose a .torrent file"));
     }
     let meta = std::fs::metadata(&p).map_err(|e| CommandError::from(nexa_core::DownloadError::from_io(&e)))?;
@@ -295,7 +295,7 @@ pub struct BrowserIntegrationStatus {
 #[tauri::command]
 pub fn get_browser_integration(state: State<'_, AppState>) -> BrowserIntegrationStatus {
     let host = browser::default_host_path();
-    let installed = host.as_ref().map_or(false, |h| h.exists());
+    let installed = host.as_ref().is_some_and(|h| h.exists());
     BrowserIntegrationStatus {
         enabled: state.mgr.settings().browser_integration,
         bridge_running: state.bridge.lock().is_some(),

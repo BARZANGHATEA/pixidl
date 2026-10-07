@@ -136,7 +136,7 @@ async fn serve_conn(mut s: TcpStream, mgr: DownloadManager, token: &str) -> std:
         .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "auth timeout"))??;
     let authed = first
         .and_then(|f| serde_json::from_slice::<Auth>(&f).ok())
-        .map_or(false, |a| constant_time_eq(a.auth.as_bytes(), token.as_bytes()));
+        .is_some_and(|a| constant_time_eq(a.auth.as_bytes(), token.as_bytes()));
     if !authed {
         let resp = protocol::error_response(None, &ProtocolError { code: ErrorCode::Unauthorized, message: "Unauthorized".into() });
         let _ = framing::write_frame_async(&mut s, resp.to_string().as_bytes()).await;

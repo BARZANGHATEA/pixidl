@@ -45,7 +45,7 @@ async fn downloads_with_multiple_connections() {
     assert_eq!(bytes.len(), srv.state.data.len());
     assert_eq!(sha(&bytes), sha(&srv.state.data));
     // Several ranged requests were made (probe + 4 segments).
-    let ranged = srv.ranges().iter().filter(|r| r.as_deref().map_or(false, |r| r.contains('-') && !r.ends_with('-'))).count();
+    let ranged = srv.ranges().iter().filter(|r| r.as_deref().is_some_and(|r| r.contains('-') && !r.ends_with('-'))).count();
     assert!(ranged >= 4, "expected segment requests, got {:?}", srv.ranges());
     assert!(h.mgr.db().load_segments(&d.id).unwrap().is_empty(), "segments cleared after completion");
 }

@@ -21,6 +21,7 @@ impl Host {
         let child = Command::new(env!("CARGO_BIN_EXE_nexa-native-host"))
             .arg("chrome-extension://ndlafmjbcbcjmkegfelbhgknmajgdbna/")
             .env("NEXA_DATA_DIR", data_dir)
+            .env("NEXA_HOST_NO_LAUNCH", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
