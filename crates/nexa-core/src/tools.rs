@@ -29,6 +29,7 @@ pub struct ToolStatus {
 #[derive(Debug, Clone, Default)]
 pub struct ToolLocator {
     search_dirs: Vec<PathBuf>,
+    skip_system_path: bool,
 }
 
 pub fn exe_name(base: &str) -> String {
@@ -56,7 +57,12 @@ fn is_executable(p: &Path) -> bool {
 
 impl ToolLocator {
     pub fn new(search_dirs: Vec<PathBuf>) -> Self {
-        Self { search_dirs }
+        Self { search_dirs, skip_system_path: false }
+    }
+
+    /// Only look in the configured path and the given directories.
+    pub fn without_system_path(search_dirs: Vec<PathBuf>) -> Self {
+        Self { search_dirs, skip_system_path: true }
     }
 
     pub fn search_dirs(&self) -> &[PathBuf] {
@@ -77,6 +83,9 @@ impl ToolLocator {
             if is_executable(&p) {
                 return Some(p);
             }
+        }
+        if self.skip_system_path {
+            return None;
         }
         let path_var = std::env::var_os("PATH")?;
         std::env::split_paths(&path_var).map(|d| d.join(&name)).find(|p| is_executable(p))

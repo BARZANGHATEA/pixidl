@@ -14,3 +14,8 @@ opt-level = 3
 lto = "thin"
 codegen-units = 4
 strip = true
+
+# Patched copy of librqbit-tracker-comms (Apache-2.0): falls back to IPv4 for
+# the UDP tracker socket on systems without IPv6. See third_party/README.md.
+[patch.crates-io]
+librqbit-tracker-comms = { path = "third_party/librqbit-tracker-comms" }

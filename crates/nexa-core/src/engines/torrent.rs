@@ -98,40 +98,27 @@ impl TorrentEngine {
             return Ok(s.clone());
         }
         std::fs::create_dir_all(&self.state_dir).map_err(|e| DownloadError::fs("Cannot create torrent state folder", &e))?;
-        let mut opts = SessionOptions {
-            fastresume: true,
-            persistence: Some(SessionPersistenceConfig::Json { folder: Some(self.state_dir.join("session")) }),
-            listen: Some(ListenerOptions {
-                listen_addr: (std::net::Ipv6Addr::UNSPECIFIED, settings.torrent_listen_port).into(),
-                ..Default::default()
-            }),
-            client_name_and_version: Some(format!("NexaDM {}", env!("CARGO_PKG_VERSION"))),
-            ..Default::default()
-        };
-        if !settings.torrent_enable_dht {
-            opts.dht = None;
-        }
-        self.dht_enabled.store(settings.torrent_enable_dht, std::sync::atomic::Ordering::Relaxed);
-        opts.ratelimits.download_bps = settings.global_speed_limit_bps.and_then(|v| NonZeroU32::new(v.min(u32::MAX as u64) as u32));
-        opts.ratelimits.upload_bps = settings.global_upload_limit_bps.and_then(|v| NonZeroU32::new(v.min(u32::MAX as u64) as u32));
         let default_dir = PathBuf::from(&settings.default_download_dir);
-        let session = match Session::new_with_opts(default_dir.clone(), opts).await {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!(error = %e, "torrent session failed to start with listener; retrying without");
-                let mut fallback = SessionOptions {
-                    fastresume: true,
-                    persistence: Some(SessionPersistenceConfig::Json { folder: Some(self.state_dir.join("session")) }),
-                    ..Default::default()
-                };
-                if !settings.torrent_enable_dht {
-                    fallback.dht = None;
+        // Try dual-stack first; fall back to IPv4-only on systems with IPv6 disabled.
+        let mut last_err = None;
+        let mut started = None;
+        for ipv4_only in [false, true] {
+            let opts = self.session_options(settings, ipv4_only);
+            match Session::new_with_opts(default_dir.clone(), opts).await {
+                Ok(s) => {
+                    started = Some(s);
+                    break;
                 }
-                Session::new_with_opts(default_dir, fallback).await.map_err(|e| {
-                    DownloadError::new(ErrorKind::EngineUnavailable, "Torrent engine failed to start").with_detail(format!("{e:#}"))
-                })?
+                Err(e) => {
+                    tracing::warn!(error = %format!("{e:#}"), ipv4_only, "torrent session failed to start");
+                    last_err = Some(e);
+                }
             }
-        };
+        }
+        let session = started.ok_or_else(|| {
+            DownloadError::new(ErrorKind::EngineUnavailable, "Torrent engine failed to start")
+                .with_detail(last_err.map(|e| format!("{e:#}")).unwrap_or_default())
+        })?;
         // Torrents restored from persistence must not start on their own:
         // the queue decides what runs.
         let restored: Vec<Handle> = session.with_torrents(|it| it.map(|(_, h)| h.clone()).collect());
@@ -142,6 +129,29 @@ impl TorrentEngine {
         }
         *guard = Some(session.clone());
         Ok(session)
+    }
+
+    fn session_options(&self, settings: &Settings, ipv4_only: bool) -> SessionOptions {
+        let listen_addr: SocketAddr = if ipv4_only {
+            (std::net::Ipv4Addr::UNSPECIFIED, settings.torrent_listen_port).into()
+        } else {
+            (std::net::Ipv6Addr::UNSPECIFIED, settings.torrent_listen_port).into()
+        };
+        let mut opts = SessionOptions {
+            fastresume: true,
+            persistence: Some(SessionPersistenceConfig::Json { folder: Some(self.state_dir.join("session")) }),
+            listen: Some(ListenerOptions { listen_addr, ipv4_only, ..Default::default() }),
+            ipv4_only,
+            client_name_and_version: Some(format!("NexaDM {}", env!("CARGO_PKG_VERSION"))),
+            ..Default::default()
+        };
+        if !settings.torrent_enable_dht {
+            opts.dht = None;
+        }
+        self.dht_enabled.store(settings.torrent_enable_dht, std::sync::atomic::Ordering::Relaxed);
+        opts.ratelimits.download_bps = settings.global_speed_limit_bps.and_then(|v| NonZeroU32::new(v.min(u32::MAX as u64) as u32));
+        opts.ratelimits.upload_bps = settings.global_upload_limit_bps.and_then(|v| NonZeroU32::new(v.min(u32::MAX as u64) as u32));
+        opts
     }
 
     pub async fn status(&self) -> TorrentEngineStatus {

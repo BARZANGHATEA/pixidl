@@ -19,4 +19,8 @@ torrentFiles?: Array<number>,
 /**
  * HTTP: requested number of connections (None = use settings).
  */
-connections?: number, };
+connections?: number, 
+/**
+ * The user chose the filename; server-provided names must not replace it.
+ */
+explicitFilename: boolean, };
