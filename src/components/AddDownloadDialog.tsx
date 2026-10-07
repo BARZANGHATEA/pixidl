@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, CheckCircle2, ClipboardPaste, FileUp, Folder, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardPaste, FileUp, Film, Folder, Loader2 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Modal } from "./Modal";
 import { api } from "../services/api";
@@ -270,7 +270,7 @@ export function AddDownloadDialog() {
 
         {video && (
           <div className="video-card">
-            {video.thumbnail ? <img src={video.thumbnail} alt="" referrerPolicy="no-referrer" /> : <div style={{ width: 132, aspectRatio: "16 / 9", background: "var(--surface-2)", borderRadius: 8 }} />}
+            {video.thumbnail ? <img src={video.thumbnail} alt="" referrerPolicy="no-referrer" /> : <div className="thumb-ph" aria-hidden="true"><Film /></div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
               <div style={{ fontWeight: 600 }} className="truncate" title={video.title}>{video.title}</div>
               <div className="hint">

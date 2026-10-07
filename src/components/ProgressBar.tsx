@@ -4,7 +4,8 @@
 export type BarTone = "active" | "done" | "error" | "paused" | "indeterminate";
 
 export function ProgressBar({ value, tone, label }: { value: number | null; tone: BarTone; label: string }) {
-  const width = tone === "indeterminate" || value === null ? 100 : value;
+  // Unknown size: a striped full bar while working, an empty track otherwise.
+  const width = tone === "indeterminate" ? 100 : value ?? 0;
   return (
     <div
       className={`bar ${tone === "active" ? "" : tone}`}
