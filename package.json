@@ -1,0 +1,51 @@
+{
+  "name": "nexa-download-manager",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Nexa Download Manager — a fast, minimal desktop download manager",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "node scripts/build-native-host.mjs && tauri build",
+    "build:web": "tsc -b && vite build",
+    "dev:web": "vite",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:rust": "cargo test --workspace",
+    "test:all": "npm run typecheck && npm test && cargo test --workspace",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "tsc -b --noEmit && cargo clippy --workspace -- -D warnings",
+    "gen:types": "cargo test -p nexa-core --lib export_bindings",
+    "build:host": "node scripts/build-native-host.mjs",
+    "package:windows": "node scripts/build-native-host.mjs && tauri build --bundles nsis"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/vazirmatn": "^5.3.0",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
+    "i18next": "^26.4.2",
+    "lucide-react": "^1.52.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.16",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^26.6.4",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  }
+}

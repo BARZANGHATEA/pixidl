@@ -1,0 +1,78 @@
+{
+  "extName": { "message": "مدیر دانلود نکسا" },
+  "extDescription": { "message": "ارسال پیوندها، رسانه‌ها و دانلودهای مرورگر به برنامهٔ دسکتاپ مدیر دانلود نکسا." },
+  "actionTitle": { "message": "مدیر دانلود نکسا" },
+
+  "menuDownloadLink": { "message": "دانلود با نکسا" },
+  "menuDownloadMedia": { "message": "دانلود رسانه با نکسا" },
+  "menuSendPage": { "message": "ارسال این صفحه به نکسا" },
+  "menuDownloadSelection": { "message": "دانلود همهٔ پیوندهای انتخاب‌شده با نکسا" },
+
+  "statusChecking": { "message": "در حال اتصال به نکسا..." },
+  "statusConnected": {
+    "message": "متصل به نکسا نسخهٔ $VERSION$",
+    "placeholders": { "version": { "content": "$1", "example": "1.0.0" } }
+  },
+
+  "sendPage": { "message": "ارسال صفحهٔ فعلی" },
+  "collectLinks": { "message": "دانلود همهٔ پیوندهای این صفحه" },
+  "linksFound": {
+    "message": "$MATCHING$ از $TOTAL$ پیوند انتخاب شد",
+    "placeholders": {
+      "matching": { "content": "$1", "example": "12" },
+      "total": { "content": "$2", "example": "40" }
+    }
+  },
+  "filterLabel": { "message": "فقط این نوع فایل‌ها (اختیاری)" },
+  "filterPlaceholder": { "message": "مثلاً zip, pdf, mp4" },
+  "sendLinks": {
+    "message": "ارسال $COUNT$ پیوند به نکسا",
+    "placeholders": { "count": { "content": "$1", "example": "12" } }
+  },
+  "sending": { "message": "در حال ارسال به نکسا..." },
+  "sentOne": {
+    "message": "به نکسا افزوده شد: $NAME$",
+    "placeholders": { "name": { "content": "$1", "example": "report.pdf" } }
+  },
+  "addedCount": {
+    "message": "نکسا $ADDED$ پیوند از $TOTAL$ پیوند را افزود",
+    "placeholders": {
+      "added": { "content": "$1", "example": "12" },
+      "total": { "content": "$2", "example": "12" }
+    }
+  },
+  "noneAdded": { "message": "نکسا هیچ‌یک از پیوندها را نیفزود" },
+  "noLinksInSelection": { "message": "هیچ پیوند قابل دانلودی در بخش انتخاب‌شده پیدا نشد" },
+
+  "activeDownloads": { "message": "دانلودهای فعال" },
+  "noActiveDownloads": { "message": "دانلود فعالی وجود ندارد" },
+  "pause": { "message": "توقف" },
+  "resume": { "message": "ادامه" },
+  "cancel": { "message": "لغو" },
+  "status_queued": { "message": "در صف" },
+  "status_preparing": { "message": "در حال آماده‌سازی" },
+  "status_downloading": { "message": "در حال دانلود" },
+  "status_paused": { "message": "متوقف" },
+  "status_completed": { "message": "تکمیل شد" },
+  "status_failed": { "message": "ناموفق" },
+  "status_cancelled": { "message": "لغو شد" },
+
+  "settingsTitle": { "message": "گزینه‌ها" },
+  "captureLabel": { "message": "دریافت دانلودهای مرورگر" },
+  "captureHint": { "message": "دانلودهایی که در مرورگر شروع می‌کنید به نکسا سپرده می‌شوند. اگر نکسا نتواند دانلودی را بپذیرد، مرورگر طبق معمول آن را دانلود می‌کند. دانلودهای پنجره‌های خصوصی هرگز دریافت نمی‌شوند." },
+  "minSizeLabel": { "message": "فقط فایل‌های دست‌کم این اندازه (مگابایت، ۰ = هر اندازه)" },
+
+  "notifySentTitle": { "message": "به نکسا ارسال شد" },
+  "notifyFailedTitle": { "message": "نکسا نتوانست این دانلود را بپذیرد" },
+  "captureFallback": {
+    "message": "به‌جای آن در مرورگر دانلود می‌شود. $REASON$",
+    "placeholders": { "reason": { "content": "$1", "example": "نکسا اجرا نشده یا نصب نیست" } }
+  },
+
+  "errAppUnavailable": { "message": "نکسا اجرا نشده یا نصب نیست" },
+  "errUnauthorized": { "message": "یکپارچگی با مرورگر در تنظیمات نکسا خاموش است" },
+  "errInvalidUrl": { "message": "نکسا نمی‌تواند این نوع پیوند را دانلود کند" },
+  "errUnsupportedVersion": { "message": "نسخه‌های این افزونه و برنامهٔ نکسا با هم سازگار نیستند. لطفاً هر دو را به‌روز کنید." },
+  "errCannotAccessPage": { "message": "پیوندهای این صفحه قابل خواندن نیستند" },
+  "errUnknown": { "message": "مشکلی پیش آمد" }
+}

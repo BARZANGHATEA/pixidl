@@ -471,3 +471,25 @@ async fn inspect_http_url() {
     let i = h.mgr.inspect_url(&srv.url("/missing/x"), None).await.unwrap();
     assert_eq!(i.warning.unwrap().kind, ErrorKind::NotFound);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pausing_never_reports_queue_finished() {
+    // Regression: pausing the only download must not emit QueueFinished,
+    // which can trigger the user's after-queue shutdown.
+    let srv = start_server(1024 * 1024, 20).await;
+    let h = harness_with(|s| s.connections_per_download = 1).await;
+    let d = h.mgr.add(req(srv.url("/slow/p.bin")), AddSource::User).await.unwrap();
+    h.wait_for(&d.id, 10, |d| d.downloaded_bytes > 64 * 1024).await;
+    h.mgr.pause(&d.id).unwrap();
+    h.wait_status(&d.id, DownloadStatus::Paused, 10).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert!(!h.events.lock().iter().any(|e| matches!(e, ManagerEvent::QueueFinished)));
+    let e = h.mgr.add(req(srv.url("/missing/x.bin")), AddSource::User).await.unwrap();
+    h.wait_status(&e.id, DownloadStatus::Failed, 10).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert!(!h.events.lock().iter().any(|e| matches!(e, ManagerEvent::QueueFinished)), "a failure is not a finished queue either");
+    h.mgr.resume(&d.id).unwrap();
+    h.wait_status(&d.id, DownloadStatus::Completed, 20).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert_eq!(h.events.lock().iter().filter(|e| matches!(e, ManagerEvent::QueueFinished)).count(), 1);
+}

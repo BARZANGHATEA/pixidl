@@ -188,3 +188,80 @@ mod tests {
         assert!(loc.find("faketool", "").is_none());
     }
 }
+
+/// Official yt-dlp release asset for this platform.
+pub fn ytdlp_asset_name() -> Option<&'static str> {
+    if cfg!(all(windows, target_arch = "x86_64")) {
+        Some("yt-dlp.exe")
+    } else if cfg!(all(windows, target_arch = "x86")) {
+        Some("yt-dlp_x86.exe")
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        Some("yt-dlp_linux")
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        Some("yt-dlp_linux_aarch64")
+    } else if cfg!(target_os = "macos") {
+        Some("yt-dlp_macos")
+    } else {
+        None
+    }
+}
+
+/// Finds the hash for `asset` in a `SHA2-256SUMS` file.
+pub fn checksum_for(sums: &str, asset: &str) -> Option<String> {
+    sums.lines().find_map(|l| {
+        let mut it = l.split_whitespace();
+        let hash = it.next()?;
+        let name = it.next()?.trim_start_matches('*');
+        (name == asset && hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit())).then(|| hash.to_ascii_lowercase())
+    })
+}
+
+pub const YTDLP_RELEASE_BASE: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
+
+/// Installs yt-dlp from the official GitHub release into `dest_dir`, verifying
+/// the SHA-256 checksum published with the release. Only ever run on an
+/// explicit user action.
+pub async fn install_ytdlp(client: &reqwest::Client, dest_dir: &Path) -> crate::Result<PathBuf> {
+    use crate::error::DownloadError;
+    use crate::types::ErrorKind;
+    use sha2::{Digest, Sha256};
+    let asset = ytdlp_asset_name().ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "No official yt-dlp build for this platform"))?;
+    let get = |url: String| async move {
+        let r = client.get(&url).send().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+        if !r.status().is_success() {
+            return Err(DownloadError::from_status(r.status().as_u16()));
+        }
+        r.bytes().await.map_err(|e| DownloadError::from_reqwest(&e))
+    };
+    let sums = get(format!("{YTDLP_RELEASE_BASE}/SHA2-256SUMS")).await?;
+    let expected = checksum_for(&String::from_utf8_lossy(&sums), asset)
+        .ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "Release checksum not found"))?;
+    let bin = get(format!("{YTDLP_RELEASE_BASE}/{asset}")).await?;
+    let actual = hex::encode(Sha256::digest(&bin));
+    if actual != expected {
+        return Err(DownloadError::new(ErrorKind::EngineUnavailable, "Downloaded yt-dlp failed checksum verification").with_detail(format!("expected {expected}, got {actual}")));
+    }
+    tokio::fs::create_dir_all(dest_dir).await.map_err(|e| DownloadError::fs("Cannot create engines folder", &e))?;
+    let target = dest_dir.join(exe_name("yt-dlp"));
+    let tmp = dest_dir.join(format!("{}.download", exe_name("yt-dlp")));
+    tokio::fs::write(&tmp, &bin).await.map_err(|e| DownloadError::fs("Cannot write yt-dlp", &e))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755));
+    }
+    tokio::fs::rename(&tmp, &target).await.map_err(|e| DownloadError::fs("Cannot install yt-dlp", &e))?;
+    tracing::info!(path = %target.display(), "installed yt-dlp from official release");
+    Ok(target)
+}
+
+#[cfg(test)]
+mod install_tests {
+    #[test]
+    fn parses_checksums() {
+        let sums = "aa  other\n0123456789abcdef0123456789abcdef0123456789abcdef0123456789ABCDEF  yt-dlp.exe\nbad  yt-dlp_linux\n";
+        assert_eq!(super::checksum_for(sums, "yt-dlp.exe").unwrap(), "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        assert!(super::checksum_for(sums, "yt-dlp_linux").is_none());
+        assert!(super::checksum_for(sums, "missing").is_none());
+    }
+}

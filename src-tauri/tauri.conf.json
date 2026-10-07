@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Nexa Download Manager",
+  "mainBinaryName": "nexa-download-manager",
+  "version": "1.0.0",
+  "identifier": "com.nexa.downloadmanager",
+  "build": {
+    "beforeDevCommand": "npm run dev:web",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build:web",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Nexa Download Manager",
+        "width": 1200,
+        "height": 780,
+        "minWidth": 880,
+        "minHeight": 580,
+        "center": true,
+        "decorations": false,
+        "visible": false,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src ipc: http://ipc.localhost; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Nexa Download Manager contributors",
+    "copyright": "Copyright © 2026 Nexa Download Manager contributors",
+    "category": "Utility",
+    "shortDescription": "Simple. Fast. Powerful.",
+    "longDescription": "A minimal download manager with resumable multi-connection downloads, torrents, video extraction and browser integration.",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "externalBin": ["binaries/nexa-native-host"],
+    "resources": {
+      "resources/THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "resources/bin/": "bin/"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["torrent"],
+        "name": "BitTorrent file",
+        "description": "BitTorrent metadata file",
+        "mimeType": "application/x-bittorrent",
+        "role": "Viewer"
+      }
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "../installer/hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": false,
+        "languages": ["English", "Farsi"]
+      }
+    }
+  }
+}

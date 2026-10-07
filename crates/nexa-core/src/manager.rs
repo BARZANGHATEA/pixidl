@@ -425,6 +425,12 @@ impl DownloadManager {
         )
     }
 
+    /// Installs yt-dlp (official release, checksum-verified) into `dest_dir`.
+    pub async fn install_ytdlp(&self, dest_dir: &Path) -> Result<PathBuf> {
+        let client = self.inner.client.read().clone();
+        tools::install_ytdlp(&client, dest_dir).await
+    }
+
     pub async fn update_ytdlp(&self) -> Result<String> {
         let s = self.settings();
         self.inner.video.self_update(&s.ytdlp_path).await
@@ -913,6 +919,7 @@ impl Inner {
             }
             free -= 1;
         }
+        // Finished = nothing running, nothing waiting (queued, scheduled or retrying).
         let idle = self.jobs.lock().is_empty() && waiting == 0;
         if idle && self.had_activity.swap(false, std::sync::atomic::Ordering::Relaxed) {
             self.sink.emit(ManagerEvent::QueueFinished);
@@ -928,7 +935,6 @@ impl Inner {
             x.error_message = None;
             x.error_detail = None;
         })?;
-        self.had_activity.store(true, std::sync::atomic::Ordering::Relaxed);
         let (ctl_tx, ctl_rx) = watch::channel(Control::Run);
         let (meta_tx, meta_rx) = mpsc::unbounded_channel();
         let progress = Arc::new(ProgressCell::default());
@@ -1061,6 +1067,9 @@ impl Inner {
                         d.scheduled_at = None;
                     })?;
                     self.db.add_event(id, "completed", None)?;
+                    // Only a completion arms "queue finished" (never a pause/cancel/failure),
+                    // because it can trigger the user's after-queue sleep/shutdown action.
+                    self.had_activity.store(true, std::sync::atomic::Ordering::Relaxed);
                     tracing::info!(id, "download completed");
                 }
                 (_, Some(Intent::Remove { delete_files })) => {

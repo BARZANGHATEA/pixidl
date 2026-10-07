@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "short_name": "Nexa",
+  "description": "__MSG_extDescription__",
+  "version": "1.0.0",
+  "default_locale": "en",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtJlUon0UEsmzL+Zwv1XFpJEl+hqFgJtW20sAsTOOJCFrz5kd35HrNxLuadtgTqVV72ly54FTJ1qgbBCEZL9pCREATC4m3aUSnB5GNKgITPHeK2V5/1bnoVrxvr+nFmVMg8F+X0SEtPoZ4jbtpKjnaAnc6Ym7NtYLJUA8UslCBZr9JV/hitfyPKZnTFuHZwNxYx4uSMFD1B79S1KOkGq/Bjvlt1KH3j/7yVNF7q9bOgHQA0r73X9eBXqC0HarNH49cRnQI8fbN9bV4d+E7V2wQiF/farJyadHX2/pMB5OsoAnO0thMKgIKtk/TvlNT3CLCp0pVPy9vDCdEqWumVfTvwIDAQAB",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "__MSG_actionTitle__",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "permissions": [
+    "nativeMessaging",
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "downloads"
+  ],
+  "minimum_chrome_version": "123",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "nexa@nexa-download-manager.app",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}
