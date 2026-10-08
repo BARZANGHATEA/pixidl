@@ -135,10 +135,13 @@ async fn run_host() -> i32 {
                 continue;
             }
         };
+        // A ping (the extension's periodic status check) must never start the
+        // app: the user may have quit it on purpose. Real actions do.
+        let may_launch = env.request != protocol::Request::Ping;
         let mut response = None;
         for attempt in 0..2 {
             if client.is_none() {
-                client = if attempt == 0 { connect_or_launch().await } else { try_connect().await };
+                client = if attempt == 0 && may_launch { connect_or_launch().await } else { try_connect().await };
             }
             let Some(c) = client.as_mut() else { break };
             match c.request(&frame).await {

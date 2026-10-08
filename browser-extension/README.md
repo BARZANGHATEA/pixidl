@@ -1,111 +1,183 @@
 # pixidl browser extension
 
-The reference extension for pixidl. It sends links, media and
-(optionally) browser downloads to the pixidl desktop app through
-[Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
-It is a Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave,
-Vivaldi) and Firefox 128 or newer, written in plain ES modules with no build step.
+Sends links, media, YouTube videos and (optionally) browser downloads to the
+**pixidl** desktop app. It talks to the app only through
+[Native Messaging](../docs/BROWSER_PROTOCOL.md) (host `com.pixidl.app`); it makes no
+network requests of its own.
 
-## Features
+Version 2.0.0 · Manifest V3 · Chrome, Edge, Brave, Opera, Vivaldi and Firefox 128+.
 
-- **Context menus**: "Download with pixidl" on links, "Download media with pixidl"
-  on images, video and audio, "Send this page to pixidl" on pages (pixidl's
-  extractor handles media pages), and "Download all links in selection with pixidl".
-- **Popup**: connection status, "Send current page", "Download all links on
-  this page" with an optional file-type filter (for example `zip, pdf`), and the
-  active downloads with pause, resume and cancel.
-- **Capture browser downloads** (off by default, under Options in the popup):
-  http(s) downloads started in the browser are handed to pixidl. The browser
-  download is cancelled only after pixidl has accepted it. If pixidl is not running
-  or rejects the link, the browser keeps downloading as usual. `blob:` and
-  `data:` downloads and private-window downloads are never captured, and you can
-  set a minimum file size. Captured downloads are fetched again by pixidl without
-  the browser's cookies, so leave capturing off for sites where downloads need
-  a signed-in session.
-- English and Persian (right-to-left) interface.
+## Build
+
+Node 22 or newer, no npm packages:
+
+```sh
+node browser-extension/build.mjs
+```
+
+| Output | Use |
+|---|---|
+| `dist/chromium/` | unpacked extension for Chrome, Edge, Brave, Opera, Vivaldi |
+| `dist/firefox/` | unpacked add-on for Firefox |
+| `dist/pixidl-chromium.zip` | the Chromium files zipped (for a store upload) |
+| `dist/pixidl-firefox.xpi` | the Firefox files zipped (for signing on addons.mozilla.org) |
+
+The build is deterministic (sorted entries, fixed timestamps). It writes a
+different `manifest.json` per browser from `manifest.base.json`:
+
+- **Chromium**: `background.service_worker` (module) and the `key` that fixes the
+  extension ID to `ndlafmjbcbcjmkegfelbhgknmajgdbna`, which the pixidl native host
+  allows by default.
+- **Firefox**: `background.scripts` (module) and
+  `browser_specific_settings.gecko` with the ID `pixidl@pixidl.app`
+  (`strict_min_version` 128.0, no data collection).
+
+`content.js` is generated: the build inlines `src/lib.js` into `src/content.js`
+inside one function, because content scripts cannot be ES modules.
 
 ## Install
 
-The pixidl installer registers the native messaging host
-(`com.pixidl.app`) for every supported browser automatically. pixidl
-must be running for downloads to be added. If the extension says "pixidl is not
-running or not installed", start pixidl, or register the host again with
-`pixidl-native-host --register`.
+The pixidl app must be installed: it registers the native messaging host for
+Chrome, Edge, Brave, Chromium and Firefox and re-registers it on every start.
 
-### Chrome, Edge, Brave, Vivaldi
+### Chrome, Edge, Brave, Opera, Vivaldi
 
-1. Open `chrome://extensions` (`edge://extensions`, `brave://extensions`, ...).
-2. Turn on **Developer mode**.
-3. Click **Load unpacked** and select this `browser-extension` folder.
+Chromium browsers only install extensions from their store or, in developer
+mode, from an unpacked folder. A local `.zip` cannot be installed directly.
 
-The manifest contains a public key, so the extension ID is always
-`ndlafmjbcbcjmkegfelbhgknmajgdbna`. That ID is allowed by the native host
-out of the box.
+1. Run the build.
+2. Open the extensions page (`chrome://extensions`, `edge://extensions`,
+   `brave://extensions`, `opera://extensions`, `vivaldi:extensions`).
+3. Turn on **Developer mode**.
+4. Click **Load unpacked** and choose `browser-extension/dist/chromium`.
+
+The extension ID will be `ndlafmjbcbcjmkegfelbhgknmajgdbna`. Store listings get
+their own ID instead, and stores generally do not accept the `key` field, so a
+store build needs the key removed and the store ID added in pixidl under
+*Settings → Browser integration → Additional Chromium extension IDs*.
+
+pixidl registers its native host for Chrome, Edge, Brave, Chromium and Vivaldi.
+Opera is not on that list. If Opera's popup says pixidl isn't running while the app
+is open, Opera is not finding the host manifest (`com.pixidl.app.json`). Make it
+available in the place Opera reads native-messaging hosts from on your system.
 
 ### Firefox
 
-1. Open `about:debugging`, then **This Firefox**.
-2. Click **Load Temporary Add-on...** and select `browser-extension/manifest.json`.
+- **For testing**: open `about:debugging#/runtime/this-firefox`, click
+  **Load Temporary Add-on…** and pick `dist/firefox/manifest.json` (or
+  `dist/pixidl-firefox.xpi`). Firefox removes temporary add-ons when it quits.
+- **Permanently**: release Firefox only installs signed add-ons. Sign the `.xpi`
+  on addons.mozilla.org (listed, or unlisted for self-distribution), then install
+  the signed file. Developer Edition and Nightly can install unsigned builds when
+  `xpinstall.signatures.required` is `false`.
 
-Temporary add-ons are removed when Firefox restarts. For a permanent install
-the add-on must be signed by [addons.mozilla.org](https://addons.mozilla.org)
-(AMO). The add-on ID is `pixidl@pixidl.app`, which the native host
-allows by default.
+Firefox 127+ grants the `<all_urls>` host permission at install time. If it was
+declined, turn it on under `about:addons` → pixidl → *Permissions*; without it the
+selection button, link detection and YouTube button do not run.
 
-### Using a different or modified extension
+## Features
 
-The native host only answers extensions it knows. If you publish a fork, load
-the extension without the `key` field (which gives it a different ID), or use a
-different Firefox add-on ID, add that ID in pixidl under
-**Settings → Browser integration → allowed extension IDs** (Chromium IDs and
-Firefox add-on IDs are listed separately). Browser integration must also be
-turned on there; otherwise every request except `ping` is answered with
-`unauthorized`.
+- **Selection button**: select text that contains links (or http(s)/magnet
+  addresses typed as text) and a small round pixidl button appears at the end of
+  the selection. It is transparent with a gray outline glyph and fills with the
+  app's accent color on hover, along with a count badge if there is more than one
+  link. One link is sent right away and confirmed with a small notice in the
+  bottom corner of the page. Several links open the picker. Escape, scrolling,
+  clicking elsewhere or clearing the selection hides it.
+- **Download detection**: the extension looks through links and media on each page
+  for downloadable files: archives, disk images, installers, documents, video,
+  audio, torrents, magnet links, images that a link points to, and anything with
+  a `download` attribute. The toolbar icon shows the count. The popup's
+  **Review & send** opens them in the picker. The page is re-scanned at most every
+  1.5 s while it changes.
+- **Picker**: a small window that lists the links with their real file names and
+  sizes, looked up by the app (`probe_links`, 50 links per request). You can
+  search, filter by file type, select or clear, and send. Keyboard: Enter sends,
+  Esc closes, Space toggles the focused row, and the arrow keys move between rows.
+  Only the links that are both selected and visible are sent, in batches of up to
+  200 links or 512 KiB.
+- **YouTube**: on watch and Shorts pages, a **Download** button sits in the
+  action bar. If the bar is missing, the button floats over the player and shows
+  on hover. *Choose quality in pixidl* brings the app to the front with its Add
+  dialog filled in (`open_in_app`). *Best quality* starts the download right away
+  through the video engine.
+- **Context menus**: *Download with pixidl* (links), *Download media with pixidl*
+  (video, audio, images), *Download links in selection with pixidl…*, *Send this
+  page to pixidl* (opens the app's Add dialog so it can detect videos and
+  qualities), and *Download all links on this page…* (picker with every http(s)
+  and magnet link).
+- **Popup**: connection status and app version, detected downloads, page actions,
+  and the app's active downloads with progress and pause/resume/cancel
+  (refreshed every 2 s while the popup is open).
+- **Browser download capture** (off by default): new browser downloads above a
+  minimum size go to pixidl. The browser download is cancelled only after pixidl
+  has accepted it. Private windows, `blob:` and `data:` downloads are never
+  captured.
 
-## Protocol
+Every request carries `client: {browser, version}`, so the app's *Extensions*
+page can show which browser is connected. The background pings the app at
+install, at browser start and every 10 minutes, and caches the result: connection
+state, app version, accent color and language.
 
-Each request is one JSON message sent with `runtime.sendNativeMessage`:
+## Settings
 
-```json
-{ "version": 1, "type": "add_download", "id": "c0ffee", "payload": { "url": "https://example.com/file.zip", "referrer": "https://example.com/" } }
+In the extension's options (also reachable from the popup's **Settings** link):
+
+| Setting | Default |
+|---|---|
+| Download button for selected links | on |
+| Detect download links | on |
+| Show the count on the toolbar icon | on |
+| Download button on YouTube | on |
+| Capture browser downloads (+ minimum size in MB) | off |
+
+Changes apply immediately to open tabs. **Test connection** pings the app.
+
+## Privacy and security
+
+- The extension talks only to the pixidl app on this computer, through native
+  messaging. It sends no requests to any website or server, and has no analytics
+  or remote code.
+- Only `http(s)` URLs and `magnet:` links with an info hash are sent. Each one is
+  validated with `new URL()`. `ftp:`, `file:`, `blob:`, `data:` and
+  `javascript:` are dropped. Referrers are sent only when they are http(s).
+- Cookies and credentials are never sent.
+- Everything the extension adds to a page lives in a closed Shadow DOM with
+  `all: initial`, so page styles and scripts cannot reach into it. It is built with
+  `textContent`, never with HTML taken from the page.
+- Settings and the last ping result are kept in `storage.local`. Links passed to
+  the picker go through `storage.session` and are deleted as soon as the picker
+  opens.
+
+## Languages
+
+English and Persian (`_locales/en`, `_locales/fa`, with the same keys). Persian
+pages and in-page UI are laid out right to left.
+
+## Development
+
+```sh
+node --test browser-extension/test/   # unit + packaging tests
+node browser-extension/build.mjs      # rebuild dist/
 ```
 
-| Type | Payload | Used by |
-| --- | --- | --- |
-| `ping` | none | popup connection status |
-| `add_download` | `url`, `filename?`, `referrer?` | link, media and page menus, "Send current page", captured downloads |
-| `add_multiple_downloads` | `items: [{url, filename?, referrer?}]`, 1 to 200 items | selection menu, "Download all links on this page" (sent in batches) |
-| `get_status` | `download_id?` | popup download list |
-| `pause`, `resume`, `cancel` | `download_id` | popup download controls |
+The tests cover the pure helpers in `src/lib.js` and manifest generation. They
+also build both packages, read them back with a small ZIP reader, check locale
+parity and run `node --check` on every script.
 
-Responses are `{"version":1,"id":...,"success":true,...}` or
-`{"version":1,"id":...,"success":false,"error":{"code":...,"message":...}}`. Error
-codes are `invalid_json`, `message_too_large`, `unsupported_version`,
-`unknown_type`, `invalid_payload`, `invalid_url`, `not_found`,
-`app_unavailable`, `unauthorized` and `internal`. The extension only sends
-`http`, `https` and `magnet` URLs. The full specification is in
-[../docs/BROWSER_PROTOCOL.md](../docs/BROWSER_PROTOCOL.md).
-
-## Privacy
-
-No data leaves your computer. The extension makes no network requests, has no
-analytics and loads no remote code. It talks only to the pixidl app on the same
-machine, and only sends the URLs you choose (plus the page they came from as the
-referrer). With capturing turned on, it also sends the URLs of the downloads you
-start in the browser. Link collection reads a page only when you click a menu
-item or a popup button. Options are stored in the browser's local extension
-storage.
-
-## Files
-
-| File | Purpose |
-| --- | --- |
-| `manifest.json` | Manifest V3 for Chromium and Firefox |
-| `background.js` | Context menus, notifications, download capture |
-| `popup.html`, `popup.js`, `popup.css` | Toolbar popup |
-| `native.js` | Native Messaging client (`send`, `sendMany`) |
-| `collect.js` | Reads links from the page or the selection |
-| `settings.js` | Stored options |
-| `lib.js` | Pure helpers (URL checks, filtering, batching) |
-| `_locales/` | English and Persian strings |
-| `test/` | Unit tests: `node --test browser-extension/test/` |
+```
+browser-extension/
+  build.mjs             build script (manifests, content-script bundle, ZIP writer)
+  manifest.base.json    manifest shared by both targets
+  src/
+    background.js       native messaging, context menus, badge, picker window, capture
+    content.js          selection button, link detection, YouTube button, page notices
+    lib.js              pure helpers (also inlined into content.js)
+    native.js           protocol client (sendNativeMessage), i18n helpers
+    settings.js         storage.local options
+    icons.js            inline SVG icons
+    popup.*  picker.*  options.*  ui.css
+    _locales/{en,fa}/messages.json
+    icons/icon-{16,32,48,128}.png
+  test/
+```

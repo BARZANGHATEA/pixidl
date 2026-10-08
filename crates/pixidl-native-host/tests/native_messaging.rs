@@ -159,6 +159,36 @@ async fn bridge_rejects_wrong_token_and_http() {
 }
 
 #[test]
+fn ping_never_launches_the_app() {
+    // Even with launching allowed, a ping only reports that pixidl is not running.
+    let data = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_pixidl-native-host"))
+        .arg("chrome-extension://ndlafmjbcbcjmkegfelbhgknmajgdbna/")
+        .env("PIXIDL_DATA_DIR", data.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let start = std::time::Instant::now();
+    let msg = json!({"version":1,"type":"ping"}).to_string();
+    let stdin = child.stdin.as_mut().unwrap();
+    stdin.write_all(&(msg.len() as u32).to_ne_bytes()).unwrap();
+    stdin.write_all(msg.as_bytes()).unwrap();
+    stdin.flush().unwrap();
+    let out = child.stdout.as_mut().unwrap();
+    let mut len = [0u8; 4];
+    out.read_exact(&mut len).unwrap();
+    let mut buf = vec![0u8; u32::from_ne_bytes(len) as usize];
+    out.read_exact(&mut buf).unwrap();
+    let _ = child.kill();
+    let _ = child.wait();
+    let r: Value = serde_json::from_slice(&buf).unwrap();
+    assert_eq!(r["error"]["code"], "app_unavailable");
+    assert!(start.elapsed() < Duration::from_secs(5), "answered immediately, without waiting for a launch");
+}
+
+#[test]
 fn app_unavailable_is_reported() {
     let data = tempfile::tempdir().unwrap();
     let mut host = Host::spawn(data.path());

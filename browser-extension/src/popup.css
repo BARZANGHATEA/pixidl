@@ -1,0 +1,136 @@
+body {
+  width: 340px;
+  padding: 14px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.head-text {
+  min-width: 0;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.small {
+  font-size: 12px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.detect {
+  display: grid;
+  gap: 10px;
+}
+
+.detect-title {
+  font-weight: 600;
+}
+
+.actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.actions button {
+  padding: 8px 10px;
+  text-align: start;
+}
+
+#message {
+  margin-top: 10px;
+}
+
+h2 {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.downloads {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.dl {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.dl-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dl-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.dl-controls {
+  display: flex;
+  flex: none;
+}
+
+.bar {
+  height: 4px;
+  margin: 6px 0 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.bar.unknown .fill {
+  width: 30% !important;
+  opacity: 0.45;
+}
+
+.dl-meta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}

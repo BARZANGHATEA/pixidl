@@ -13,7 +13,7 @@ use ts_rs::TS;
 use crate::paths::{native_messaging_dir, NATIVE_HOST_NAME};
 
 /// ID of the bundled reference extension (derived from the public key in
-/// `browser-extension/manifest.json`).
+/// `browser-extension/manifest.base.json`).
 pub const REFERENCE_EXTENSION_ID: &str = "ndlafmjbcbcjmkegfelbhgknmajgdbna";
 /// Gecko ID of the reference extension for Firefox.
 pub const REFERENCE_FIREFOX_ID: &str = "pixidl@pixidl.app";

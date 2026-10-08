@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pixidl</title>
+    <link rel="stylesheet" href="ui.css" />
+    <link rel="stylesheet" href="options.css" />
+    <script type="module" src="options.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="head">
+        <svg class="logo" width="32" height="32" viewBox="64 64 896 896" aria-hidden="true" focusable="false"><defs><linearGradient id="pxg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B82F6"/><stop offset="1" stop-color="#4F46E5"/></linearGradient></defs><rect x="64" y="64" width="896" height="896" rx="216" fill="url(#pxg)"/><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M410 268 H575 A140 140 0 0 1 575 548 H410" stroke-width="104"/><path d="M410 268 V738" stroke-width="104"/><path d="M300 640 L410 750 L520 640" stroke-width="96"/></g></svg>
+        <div>
+          <h1 data-i18n="optionsTitle"></h1>
+          <div id="version" class="muted small"></div>
+        </div>
+      </header>
+
+      <section class="group">
+        <h2 data-i18n="optionsPagesHeading"></h2>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="optSelectionButton"></span><span class="hint" data-i18n="optSelectionButtonHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="selectionButton" />
+        </label>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="optDetectLinks"></span><span class="hint" data-i18n="optDetectLinksHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="detectLinks" />
+        </label>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="optShowBadge"></span><span class="hint" data-i18n="optShowBadgeHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="showBadge" />
+        </label>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="optYoutubeButton"></span><span class="hint" data-i18n="optYoutubeButtonHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="youtubeButton" />
+        </label>
+      </section>
+
+      <section class="group">
+        <h2 data-i18n="optionsDownloadsHeading"></h2>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="captureLabel"></span><span class="hint" data-i18n="captureHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="captureDownloads" />
+        </label>
+        <label class="setting sub" for="min-size">
+          <span class="text"><span class="label" data-i18n="minSizeLabel"></span><span class="hint" data-i18n="minSizeHint"></span></span>
+          <input id="min-size" type="number" min="0" max="1000000" step="1" inputmode="numeric" />
+        </label>
+      </section>
+
+      <section class="group">
+        <h2 data-i18n="optionsConnectionHeading"></h2>
+        <div class="setting">
+          <div id="conn" class="conn" data-state="checking">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="conn-text" data-i18n="statusUnknown"></span>
+          </div>
+          <button id="test" type="button" data-i18n="testConnection"></button>
+        </div>
+        <p class="hint privacy" data-i18n="privacyNote"></p>
+      </section>
+    </main>
+  </body>
+</html>

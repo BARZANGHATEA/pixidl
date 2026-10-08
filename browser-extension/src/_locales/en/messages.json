@@ -1,0 +1,382 @@
+{
+  "extName": {
+    "message": "pixidl"
+  },
+  "extDescription": {
+    "message": "Send links, videos and downloads from your browser to the pixidl download manager."
+  },
+  "actionTitle": {
+    "message": "pixidl"
+  },
+  "uiDirection": {
+    "message": "ltr"
+  },
+  "menuDownloadLink": {
+    "message": "Download with pixidl"
+  },
+  "menuDownloadMedia": {
+    "message": "Download media with pixidl"
+  },
+  "menuDownloadSelection": {
+    "message": "Download links in selection with pixidl…"
+  },
+  "menuSendPage": {
+    "message": "Send this page to pixidl"
+  },
+  "menuAllLinks": {
+    "message": "Download all links on this page…"
+  },
+  "selButtonOne": {
+    "message": "Download 1 link with pixidl"
+  },
+  "selButtonMany": {
+    "message": "Download $COUNT$ links with pixidl",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "ytDownload": {
+    "message": "Download"
+  },
+  "ytButtonTitle": {
+    "message": "Download this video with pixidl"
+  },
+  "ytChooseQuality": {
+    "message": "Choose quality in pixidl"
+  },
+  "ytChooseQualityHint": {
+    "message": "Opens pixidl to pick the format and quality"
+  },
+  "ytBest": {
+    "message": "Best quality"
+  },
+  "ytBestHint": {
+    "message": "Starts downloading right away"
+  },
+  "statusChecking": {
+    "message": "Connecting to pixidl…"
+  },
+  "statusUnknown": {
+    "message": "Not checked yet"
+  },
+  "statusConnected": {
+    "message": "Connected · v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1",
+        "example": "1.0.0"
+      }
+    }
+  },
+  "testConnection": {
+    "message": "Test connection"
+  },
+  "detectedOne": {
+    "message": "1 download detected on this page"
+  },
+  "detectedMany": {
+    "message": "$COUNT$ downloads detected on this page",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "detectedHint": {
+    "message": "Files, media and magnet links found on the page."
+  },
+  "detectionOff": {
+    "message": "Automatic detection is turned off in Settings."
+  },
+  "reviewAndSend": {
+    "message": "Review & send"
+  },
+  "allLinksButton": {
+    "message": "Download all links on this page…"
+  },
+  "sendPageButton": {
+    "message": "Send this page"
+  },
+  "settingsLink": {
+    "message": "Settings"
+  },
+  "sending": {
+    "message": "Sending to pixidl…"
+  },
+  "sentOne": {
+    "message": "Added to pixidl: $NAME$",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "report.pdf"
+      }
+    }
+  },
+  "openedInApp": {
+    "message": "Opened in pixidl"
+  },
+  "sentCount": {
+    "message": "Sent $ADDED$ of $TOTAL$",
+    "placeholders": {
+      "added": {
+        "content": "$1",
+        "example": "12"
+      },
+      "total": {
+        "content": "$2",
+        "example": "12"
+      }
+    }
+  },
+  "noneAdded": {
+    "message": "pixidl did not add any of the links"
+  },
+  "noLinksInSelection": {
+    "message": "No downloadable links in the selection"
+  },
+  "noLinksOnPage": {
+    "message": "No downloadable links on this page"
+  },
+  "activeDownloads": {
+    "message": "Active downloads"
+  },
+  "noActiveDownloads": {
+    "message": "No active downloads"
+  },
+  "pause": {
+    "message": "Pause"
+  },
+  "resume": {
+    "message": "Resume"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "status_queued": {
+    "message": "Queued"
+  },
+  "status_preparing": {
+    "message": "Preparing"
+  },
+  "status_downloading": {
+    "message": "Downloading"
+  },
+  "status_paused": {
+    "message": "Paused"
+  },
+  "status_completed": {
+    "message": "Completed"
+  },
+  "status_failed": {
+    "message": "Failed"
+  },
+  "status_cancelled": {
+    "message": "Cancelled"
+  },
+  "pickerLinksOne": {
+    "message": "1 link"
+  },
+  "pickerLinksMany": {
+    "message": "$COUNT$ links",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "pickerExpired": {
+    "message": "This list is no longer available. Open it again from the page."
+  },
+  "searchPlaceholder": {
+    "message": "Search by name or address"
+  },
+  "filterByType": {
+    "message": "Filter by file type"
+  },
+  "linkList": {
+    "message": "Links"
+  },
+  "selectAll": {
+    "message": "Select all"
+  },
+  "selectNone": {
+    "message": "None"
+  },
+  "type_video": {
+    "message": "Video"
+  },
+  "type_audio": {
+    "message": "Audio"
+  },
+  "type_archive": {
+    "message": "Archives"
+  },
+  "type_program": {
+    "message": "Programs"
+  },
+  "type_document": {
+    "message": "Documents"
+  },
+  "type_image": {
+    "message": "Images"
+  },
+  "type_torrent": {
+    "message": "Torrents"
+  },
+  "type_other": {
+    "message": "Other"
+  },
+  "probeFailed": {
+    "message": "details unavailable"
+  },
+  "bannerNotRunning": {
+    "message": "pixidl is not running — sizes unavailable"
+  },
+  "bannerProbeFailed": {
+    "message": "Could not look up the files: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1",
+        "example": "pixidl isn't running"
+      }
+    }
+  },
+  "noMatches": {
+    "message": "No links match the search or filter."
+  },
+  "noLinks": {
+    "message": "There are no links to show."
+  },
+  "selectedCount": {
+    "message": "$COUNT$ selected",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "selectedWithSize": {
+    "message": "$COUNT$ selected · $SIZE$",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      },
+      "size": {
+        "content": "$2",
+        "example": "1.2 GB"
+      }
+    }
+  },
+  "sizeKnownOnly": {
+    "message": "$SIZE$ (known sizes)",
+    "placeholders": {
+      "size": {
+        "content": "$1",
+        "example": "1.2 GB"
+      }
+    }
+  },
+  "sendToApp": {
+    "message": "Send to pixidl"
+  },
+  "optionsTitle": {
+    "message": "pixidl settings"
+  },
+  "extensionVersion": {
+    "message": "Browser extension v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1",
+        "example": "1.0.0"
+      }
+    }
+  },
+  "optionsPagesHeading": {
+    "message": "On web pages"
+  },
+  "optSelectionButton": {
+    "message": "Download button for selected links"
+  },
+  "optSelectionButtonHint": {
+    "message": "When you select text that contains links, a small pixidl button appears next to it."
+  },
+  "optDetectLinks": {
+    "message": "Detect download links"
+  },
+  "optDetectLinksHint": {
+    "message": "Finds files, media and magnet links on each page so you can send them in one go."
+  },
+  "optShowBadge": {
+    "message": "Show the count on the toolbar icon"
+  },
+  "optShowBadgeHint": {
+    "message": "The pixidl icon shows how many downloads were detected on the page."
+  },
+  "optYoutubeButton": {
+    "message": "Download button on YouTube"
+  },
+  "optYoutubeButtonHint": {
+    "message": "Adds a Download button below YouTube videos."
+  },
+  "optionsDownloadsHeading": {
+    "message": "Browser downloads"
+  },
+  "captureLabel": {
+    "message": "Capture browser downloads"
+  },
+  "captureHint": {
+    "message": "Downloads you start in the browser are handed to pixidl. If pixidl cannot take one, the browser downloads it as usual. Private windows are never captured."
+  },
+  "minSizeLabel": {
+    "message": "Minimum file size (MB)"
+  },
+  "minSizeHint": {
+    "message": "Smaller files stay in the browser. 0 captures every size."
+  },
+  "optionsConnectionHeading": {
+    "message": "Connection"
+  },
+  "privacyNote": {
+    "message": "The extension talks only to the pixidl app on this computer. It sends no data anywhere else and collects no statistics."
+  },
+  "notifySentTitle": {
+    "message": "Sent to pixidl"
+  },
+  "notifyFailedTitle": {
+    "message": "pixidl could not take this"
+  },
+  "captureFallback": {
+    "message": "Downloading in the browser instead. $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1",
+        "example": "pixidl isn't running"
+      }
+    }
+  },
+  "errAppUnavailable": {
+    "message": "pixidl isn't running. Start pixidl and try again."
+  },
+  "errUnauthorized": {
+    "message": "Browser integration is turned off in pixidl settings"
+  },
+  "errInvalidUrl": {
+    "message": "pixidl cannot download this kind of link"
+  },
+  "errUnsupportedVersion": {
+    "message": "This extension and the pixidl app are incompatible versions. Please update both."
+  },
+  "errCannotAccessPage": {
+    "message": "Links on this page cannot be read"
+  },
+  "errUnknown": {
+    "message": "Something went wrong"
+  }
+}
