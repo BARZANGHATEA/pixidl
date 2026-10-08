@@ -153,6 +153,23 @@ errors, and every Rust test, including the real yt-dlp and torrent engines.
 4. uninstalls silently and checks that the browser integration was removed
 5. uploads the installer as an artifact
 
+## Releases
+
+`.github/workflows/release.yml` publishes a GitHub release when a version tag is pushed:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+It builds the installer on Windows with MSVC and attaches these files to the release:
+
+- `pixidl_<version>_x64-setup.exe`
+- `pixidl-chromium.zip`
+- `pixidl-firefox.xpi`
+- `SHA256SUMS.txt`
+
+To rebuild an existing tag, run the workflow by hand from the Actions tab.
+
 ## Third-party notices
 
 ```bash
