@@ -6,7 +6,7 @@
 // otherwise the latest release is used. FFmpeg is NOT bundled (licensing and
 // size); the app detects a system FFmpeg or a user-configured path.
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdirSync, writeFileSync, chmodSync, readdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,6 +37,10 @@ if (actual !== expected) throw new Error(`checksum mismatch for ${asset}: expect
 
 const outDir = join(root, "src-tauri", "resources", "bin");
 mkdirSync(outDir, { recursive: true });
+// Everything in this folder is bundled: drop binaries fetched for other platforms.
+for (const f of readdirSync(outDir)) {
+  if (f !== "README.md") rmSync(join(outDir, f), { force: true });
+}
 const out = join(outDir, isWin ? "yt-dlp.exe" : "yt-dlp");
 writeFileSync(out, bin);
 if (!isWin) chmodSync(out, 0o755);

@@ -193,7 +193,12 @@ async fn concurrency_limit_is_enforced() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert_eq!(max_seen, 2, "never more than 2 active downloads");
-    assert!(h.events.lock().iter().any(|e| matches!(e, ManagerEvent::QueueFinished)));
+    // QueueFinished comes from the queue pass that follows the last completion.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !h.events.lock().iter().any(|e| matches!(e, ManagerEvent::QueueFinished)) {
+        assert!(Instant::now() < deadline, "QueueFinished was not emitted");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

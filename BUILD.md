@@ -95,6 +95,30 @@ What the installer does:
 Engines. Without FFmpeg, the video engine only offers formats that already contain
 both audio and video.
 
+### Cross-building and checking the installer on Linux
+
+Useful for checking the installer when no Windows machine is at hand. Release
+builds should still use MSVC on Windows (CI). This path uses the MinGW target,
+which needs no Microsoft SDK download:
+
+```bash
+sudo apt-get install mingw-w64 nsis wine64 wine32:i386   # wine32 needs: dpkg --add-architecture i386
+rustup target add x86_64-pc-windows-gnu
+export TAURI_ENV_TARGET_TRIPLE=x86_64-pc-windows-gnu
+node scripts/fetch-engines.mjs && node scripts/build-native-host.mjs
+npx tauri build --target x86_64-pc-windows-gnu --bundles nsis
+
+# Run the Rust test suites as Windows executables:
+CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine cargo test -p nexa-core -p nexa-native-host --target x86_64-pc-windows-gnu
+
+# Silent install / uninstall in a Wine prefix (Wine has no WebView2, so first
+# mark it as installed the way Windows 10/11 report it):
+wine reg add 'HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' /v pv /t REG_SZ /d 130.0.0.0 /f
+wine "target/x86_64-pc-windows-gnu/release/bundle/nsis/Nexa Download Manager_1.0.0_x64-setup.exe" /S
+```
+
+The GUI itself cannot run under Wine because WebView2 is missing.
+
 ### Code signing
 
 Unsigned installers trigger SmartScreen warnings. To sign:

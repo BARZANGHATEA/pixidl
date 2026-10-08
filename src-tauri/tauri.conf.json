@@ -61,7 +61,7 @@
         "installerHooks": "../installer/hooks.nsh",
         "installerIcon": "icons/icon.ico",
         "displayLanguageSelector": false,
-        "languages": ["English", "Farsi"]
+        "languages": ["English"]
       }
     }
   }
