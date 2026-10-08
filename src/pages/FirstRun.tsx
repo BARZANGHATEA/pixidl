@@ -90,6 +90,7 @@ export function FirstRun({ onDone }: { onDone: () => void }) {
               {engineLine(t("settings.torrentEngine"), true, engines.torrent.library)}
               {engineLine(t("settings.ytdlp"), engines.ytdlp.available, engines.ytdlp.version)}
               {engineLine(t("settings.ffmpeg"), engines.ffmpeg.available, engines.ffmpeg.version)}
+              {engineLine(t("settings.jsRuntime"), engines.jsRuntime.available, engines.jsRuntime.version)}
             </>
           ) : (
             <span className="muted">…</span>

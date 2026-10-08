@@ -34,13 +34,18 @@ build version and machine.
 - [ ] Unsupported page → a clear "not supported" message with details.
 - [ ] Settings → Engines → *Check for updates* runs the yt-dlp updater and reports the result.
 
-## Browser integration
-- [ ] Load `browser-extension` unpacked in Chrome and Edge. The popup shows "Connected to pixidl".
-- [ ] Right-click a link → *Download with pixidl* → the download appears in pixidl and a browser notification confirms it.
-- [ ] Select text containing several links → *Download all links in selection* → all of them are added.
+## Browser extension (Chrome, Edge, Brave, Firefox)
+- [ ] pixidl → *Browser extension*: each browser card shows "Browser found" for installed browsers. *Get extension* saves `pixidl-extension-<browser>.zip/.xpi` to Downloads and opens the guide.
+- [ ] *Open in <browser>* opens the browser's extensions page. *Load unpacked* with the shown folder works. Within a minute the card turns green with "Connected · v2.0.0".
+- [ ] Select text containing one link → a small transparent button appears beside the selection. Hovering turns it the accent colour. Clicking starts the download in pixidl and shows a toast in the page.
+- [ ] Select a block with several links → the button shows the count → the picker window lists them with names and **sizes** → untick one → *Send* → exactly the ticked files appear in pixidl.
+- [ ] The extension icon shows a badge with the number of download links detected on the page. *Review & send* in the popup opens the picker.
+- [ ] YouTube watch page → a *Download* button sits under the video. *Choose quality in pixidl* brings pixidl to the front with the qualities listed. *Best quality* starts directly.
+- [ ] Turn off the selection button / detection / YouTube button in the extension settings → the change applies without reloading the page.
+- [ ] Right-click a link → *Download with pixidl*. Right-click the page → *Download all links on this page…* opens the picker.
 - [ ] Close pixidl (Exit from the tray), then send a link → pixidl starts in the background and the download starts.
-- [ ] With *Accept downloads from the browser extension* off, the extension shows "turned off".
-- [ ] Firefox: load as a temporary add-on, then repeat the link test.
+- [ ] With *Accept downloads from the browser extension* off in pixidl, the extension reports that integration is turned off.
+- [ ] Firefox: load the add-on temporarily (about:debugging), then repeat the selection, picker and YouTube tests.
 
 ## Queue, schedule, tray, notifications
 - [ ] Scheduler window (e.g. start in 2 minutes) → queued items wait, then start at the start time and pause back to the queue at the stop time.

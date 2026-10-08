@@ -11,8 +11,22 @@ Tauri 2, Rust and React.
   audio-only, real progress
 - **Queue**: simultaneous-download limit, priorities, reordering, per-download
   and global speed limits, retries with backoff, time-window scheduler
-- **Browser integration** through Native Messaging (Chrome, Edge, Brave, Chromium,
-  Vivaldi, Firefox) with a reference extension in [`browser-extension/`](browser-extension/)
+- **Browser extension** for Chrome, Edge, Brave and Firefox, installed from the
+  app's *Browser extension* page:
+  - a small download button appears next to selected links (transparent until you
+    hover it; can be turned off)
+  - download links on every page are detected automatically and counted on the
+    toolbar icon
+  - several links open a compact picker that shows each file's name and size, so
+    you choose what to send
+  - a Download button on YouTube opens pixidl to pick the quality or audio only
+  - the context menu offers the same actions (link, media, selection, page)
+- **YouTube and other sites**: quality presets, playlists (pick the videos), audio
+  as MP3/M4A/Opus/FLAC/WAV with tags and cover art, optional subtitles. YouTube
+  needs a JavaScript runtime for yt-dlp; pixidl uses Deno, Node or Bun, and can
+  install Deno for you (checksum-verified)
+- **Paste many links at once**: names and sizes are looked up, and you tick the
+  ones to add. Optional **SHA-256 verification** after download
 - **Persistence and recovery**: SQLite with migrations; interrupted downloads
   resume from the bytes already on disk after a restart or crash
 - System tray, notifications, optional clipboard detection, history, search,
@@ -33,7 +47,7 @@ Windows the MSVC build tools; WebView2 ships with Windows 10/11).
 
 ```bash
 npm install
-npm run dev          # builds the native host sidecar, then starts the app with hot reload
+npm run dev          # builds the extension packages and native host sidecar, then starts the app with hot reload
 ```
 
 ## Tests
@@ -42,7 +56,7 @@ npm run dev          # builds the native host sidecar, then starts the app with 
 npm run typecheck                    # TypeScript
 npm test                             # frontend tests (Vitest)
 node --test browser-extension/test/  # browser extension tests
-node scripts/build-native-host.mjs --debug   # once: the sidecar is needed to compile the app
+node scripts/prepare-tauri.mjs --debug       # once: extension packages + sidecar are needed to compile the app
 cargo test --workspace               # Rust unit + integration tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
@@ -82,7 +96,7 @@ crates/pixidl-core/        Rust core: engines, queue manager, SQLite, settings, 
 crates/pixidl-native-host/ native messaging host binary (+ end-to-end tests)
 src-tauri/               Tauri shell: IPC commands, tray, notifications, logging, config
 src/                     React + TypeScript UI (components, pages, stores, i18n, services)
-browser-extension/       reference MV3 extension (Chromium + Firefox)
+browser-extension/       MV3 extension for Chrome, Edge, Brave and Firefox (build.mjs → dist/)
 installer/               NSIS hooks (native host registration)
 scripts/                 build helpers (sidecar, engine bundling, license notices)
 third_party/             patched third-party crate (see its README)

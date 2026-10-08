@@ -42,8 +42,8 @@ jobs:
         run: node --test browser-extension/test/
       - name: Frontend build
         run: npm run build:web
-      - name: Native host sidecar
-        run: node scripts/build-native-host.mjs --debug
+      - name: Extension packages and native host sidecar
+        run: node scripts/prepare-tauri.mjs --debug
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust tests (unit + integration)
@@ -64,8 +64,8 @@ jobs:
       - run: npm ci
       - name: Frontend tests
         run: npm test
-      - name: Native host sidecar (debug, for tests)
-        run: node scripts/build-native-host.mjs --debug
+      - name: Extension packages and native host sidecar (debug, for tests)
+        run: node scripts/prepare-tauri.mjs --debug
       - name: Rust tests on Windows
         run: cargo test --workspace
       - name: Build installer (bundles checksum-verified yt-dlp)
@@ -84,7 +84,7 @@ jobs:
           $installer = "${{ steps.installer.outputs.path }}"
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
           $dir = Join-Path $env:LOCALAPPDATA "pixidl"
-          foreach ($f in @("pixidl.exe", "pixidl-native-host.exe", "bin\yt-dlp.exe", "THIRD-PARTY-NOTICES.md", "uninstall.exe")) {
+          foreach ($f in @("pixidl.exe", "pixidl-native-host.exe", "bin\yt-dlp.exe", "THIRD-PARTY-NOTICES.md", "uninstall.exe", "extension\chromium\manifest.json", "extension\pixidl-firefox.xpi")) {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
           }
           & (Join-Path $dir "pixidl-native-host.exe") --version

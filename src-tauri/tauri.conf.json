@@ -43,7 +43,8 @@
     "externalBin": ["binaries/pixidl-native-host"],
     "resources": {
       "resources/THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
-      "resources/bin/": "bin/"
+      "resources/bin/": "bin/",
+      "../browser-extension/dist/": "extension/"
     },
     "fileAssociations": [
       {

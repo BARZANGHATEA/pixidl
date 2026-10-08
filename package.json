@@ -6,8 +6,8 @@
   "description": "pixidl \u2014 a fast, minimal desktop download manager",
   "license": "MIT",
   "scripts": {
-    "dev": "node scripts/build-native-host.mjs --debug && tauri dev",
-    "build": "node scripts/build-native-host.mjs && tauri build",
+    "dev": "node scripts/prepare-tauri.mjs --debug && tauri dev",
+    "build": "node scripts/prepare-tauri.mjs && tauri build",
     "build:web": "tsc -b && vite build",
     "dev:web": "vite",
     "preview": "vite preview",
@@ -15,14 +15,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rust": "cargo test --workspace",
-    "test:all": "npm run typecheck && npm test && cargo test --workspace",
+    "test:all": "npm run typecheck && npm test && node --test browser-extension/test/ && cargo test --workspace",
     "typecheck": "tsc -b --noEmit",
     "lint": "tsc -b --noEmit && cargo clippy --workspace -- -D warnings",
     "gen:types": "cargo test -p pixidl-core --lib export_bindings",
     "build:host": "node scripts/build-native-host.mjs",
-    "package:windows": "node scripts/fetch-engines.mjs && node scripts/build-native-host.mjs && tauri build --bundles nsis",
+    "package:windows": "node scripts/fetch-engines.mjs && node scripts/prepare-tauri.mjs && tauri build --bundles nsis",
     "fetch:engines": "node scripts/fetch-engines.mjs",
-    "gen:notices": "node scripts/gen-notices.mjs"
+    "gen:notices": "node scripts/gen-notices.mjs",
+    "prepare:tauri": "node scripts/prepare-tauri.mjs --debug",
+    "build:extension": "node browser-extension/build.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

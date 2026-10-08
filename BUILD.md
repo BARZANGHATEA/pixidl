@@ -37,14 +37,14 @@ calls fail there because there is no Tauri runtime.
 npm run typecheck
 npm test                                   # 35 Vitest tests (components, filters, i18n parity, ...)
 node --test browser-extension/test/        # extension helpers, manifest, locales
-node scripts/build-native-host.mjs --debug # required once before compiling the app crate
+node scripts/prepare-tauri.mjs --debug   # required once before compiling the app crate (extension + sidecar)
 cargo test --workspace                     # Rust unit and integration tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 Notes:
 
-- `cargo test` compiles `src-tauri`, and Tauri checks that the sidecar binary
+- `cargo test` compiles `src-tauri`, and Tauri checks that the sidecar binary and the bundled extension packages
   exists. That is why the sidecar must be built first.
 - The video tests print `SKIPPED` when yt-dlp or FFmpeg is not installed.
 - The torrent test runs entirely on localhost: a seeder session, a minimal HTTP
