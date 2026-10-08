@@ -200,7 +200,7 @@ pub async fn handle(mgr: &DownloadManager, raw: &[u8]) -> Value {
     };
     let id = env.id.as_deref();
     if !mgr.settings().browser_integration && env.request != Request::Ping {
-        return error_response(id, &ProtocolError::new(ErrorCode::Unauthorized, "Browser integration is disabled in Nexa settings"));
+        return error_response(id, &ProtocolError::new(ErrorCode::Unauthorized, "Browser integration is disabled in pixidl settings"));
     }
     let add = |item: AddItem| AddDownloadRequest { url: item.url, filename: item.filename, referrer: item.referrer, ..Default::default() };
     let not_found = || ProtocolError::new(ErrorCode::NotFound, "Download not found");

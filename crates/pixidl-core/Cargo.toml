@@ -1,5 +1,5 @@
 [package]
-name = "nexa-core"
+name = "pixidl-core"
 description = "Download manager core: engines, queue, persistence and browser protocol"
 version.workspace = true
 edition.workspace = true

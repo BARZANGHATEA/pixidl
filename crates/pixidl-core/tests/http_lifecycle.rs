@@ -5,9 +5,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use common::*;
-use nexa_core::db::Db;
-use nexa_core::manager::AddSource;
-use nexa_core::types::*;
+use pixidl_core::db::Db;
+use pixidl_core::manager::AddSource;
+use pixidl_core::types::*;
 use sha2::{Digest, Sha256};
 
 fn sha(b: &[u8]) -> String {
@@ -340,7 +340,7 @@ async fn crash_recovery_resumes_from_disk() {
     let srv = start_server(512 * 1024, 0).await;
     let dir = tempfile::tempdir().unwrap();
     let data_dir = tempfile::tempdir().unwrap();
-    let db_path = data_dir.path().join("nexa.db");
+    let db_path = data_dir.path().join("pixidl.db");
     let id;
     {
         // Simulate a crash: the DB says "downloading" and a partial file exists.
@@ -348,7 +348,7 @@ async fn crash_recovery_resumes_from_disk() {
         let mut s = test_settings(dir.path());
         s.connections_per_download = 1;
         db.save_settings(&s).unwrap();
-        let t = nexa_core::db::now();
+        let t = pixidl_core::db::now();
         let d = Download {
             id: "crashed".into(),
             url: srv.url("/file/crash.bin"),
@@ -387,7 +387,7 @@ async fn crash_recovery_resumes_from_disk() {
             file_missing: false,
         };
         db.insert_download(&d).unwrap();
-        db.set_validators("crashed", &nexa_core::db::Validators { etag: Some("\"v1\"".into()), last_modified: None }).unwrap();
+        db.set_validators("crashed", &pixidl_core::db::Validators { etag: Some("\"v1\"".into()), last_modified: None }).unwrap();
         std::fs::write(dir.path().join("crash.bin.part"), &srv.state.data[..100_000]).unwrap();
         id = d.id;
     }
@@ -405,7 +405,7 @@ async fn graceful_shutdown_requeues_and_restart_continues() {
     let srv = start_server(1024 * 1024, 15).await;
     let dir = tempfile::tempdir().unwrap();
     let data_dir = tempfile::tempdir().unwrap();
-    let db_path = data_dir.path().join("nexa.db");
+    let db_path = data_dir.path().join("pixidl.db");
     let db = Db::open(&db_path).unwrap();
     let mut s = test_settings(dir.path());
     s.connections_per_download = 1;

@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Nexa Download Manager",
-  "mainBinaryName": "nexa-download-manager",
+  "productName": "pixidl",
+  "mainBinaryName": "pixidl",
   "version": "1.0.0",
-  "identifier": "com.nexa.downloadmanager",
+  "identifier": "com.pixidl.app",
   "build": {
     "beforeDevCommand": "npm run dev:web",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Nexa Download Manager",
+        "title": "pixidl",
         "width": 1200,
         "height": 780,
         "minWidth": 880,
@@ -32,15 +32,15 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "publisher": "Nexa Download Manager contributors",
-    "copyright": "Copyright © 2026 Nexa Download Manager contributors",
+    "publisher": "pixidl contributors",
+    "copyright": "Copyright © 2026 pixidl contributors",
     "category": "Utility",
     "shortDescription": "Simple. Fast. Powerful.",
     "longDescription": "A minimal download manager with resumable multi-connection downloads, torrents, video extraction and browser integration.",
     "license": "MIT",
     "licenseFile": "../LICENSE",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "externalBin": ["binaries/nexa-native-host"],
+    "externalBin": ["binaries/pixidl-native-host"],
     "resources": {
       "resources/THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
       "resources/bin/": "bin/"

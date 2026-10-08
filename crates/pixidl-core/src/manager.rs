@@ -94,7 +94,7 @@ pub struct DownloadManager {
 impl DownloadManager {
     /// Opens the database, recovers interrupted downloads and starts the queue.
     pub async fn start(config: ManagerConfig, sink: Arc<dyn EventSink>) -> Result<Self> {
-        let db = Db::open(&config.data_dir.join("nexa.db"))?;
+        let db = Db::open(&config.data_dir.join("pixidl.db"))?;
         Self::start_with_db(db, config, sink).await
     }
 

@@ -3,7 +3,7 @@
 //! - arguments are passed as an array; the URL is validated and placed after
 //!   `--` so it can never be interpreted as an option
 //! - user yt-dlp config files are ignored (`--ignore-config`) for predictable behaviour
-//! - partial data lives in `<save_dir>/.nexa-partial/<id>` and is moved into
+//! - partial data lives in `<save_dir>/.pixidl-partial/<id>` and is moved into
 //!   place by yt-dlp only when complete; cancel removes that directory
 //! - pause = stop the process; resume = re-run (yt-dlp continues `.part` files)
 
@@ -23,9 +23,9 @@ use crate::security;
 use crate::tools::{command, ToolLocator};
 use crate::types::{Download, EngineKind, ErrorKind};
 
-const PROGRESS_PREFIX: &str = "NEXAPROG|";
-const META_PREFIX: &str = "NEXAMETA|";
-const FILE_PREFIX: &str = "NEXAFILE|";
+const PROGRESS_PREFIX: &str = "PIXIDLPROG|";
+const META_PREFIX: &str = "PIXIDLMETA|";
+const FILE_PREFIX: &str = "PIXIDLFILE|";
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -89,7 +89,7 @@ impl VideoEngine {
 }
 
 pub fn partial_dir(save_dir: &Path, id: &str) -> PathBuf {
-    save_dir.join(".nexa-partial").join(security::sanitize_filename(id))
+    save_dir.join(".pixidl-partial").join(security::sanitize_filename(id))
 }
 
 fn http_url(url: &str) -> Result<url::Url> {
@@ -253,7 +253,7 @@ pub fn build_presets(formats: &[VideoFormat], ffmpeg: bool) -> Vec<FormatPreset>
     out
 }
 
-/// Parses one `NEXAPROG|status|downloaded|total|estimate|speed|eta` line.
+/// Parses one `PIXIDLPROG|status|downloaded|total|estimate|speed|eta` line.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressLine {
     pub status: String,
@@ -343,7 +343,7 @@ impl Engine for VideoEngine {
 
     fn cleanup(&self, d: &Download, delete_completed: bool) -> BoxFuture<'static, ()> {
         let dir = partial_dir(Path::new(&d.save_dir), &d.id);
-        let root = Path::new(&d.save_dir).join(".nexa-partial");
+        let root = Path::new(&d.save_dir).join(".pixidl-partial");
         let full = d.full_path();
         let completed = d.status == crate::types::DownloadStatus::Completed;
         Box::pin(async move {
@@ -509,7 +509,7 @@ async fn run(tools: Arc<ToolLocator>, mut ctx: JobContext) -> Result<EngineOutco
     let size = tokio::fs::metadata(&canon_file).await.map(|m| m.len()).unwrap_or(0);
     ctx.progress.set(EngineProgress { downloaded: size, total: Some(size), ..Default::default() });
     let _ = tokio::fs::remove_dir_all(&tmp).await;
-    let _ = tokio::fs::remove_dir(save_dir.join(".nexa-partial")).await;
+    let _ = tokio::fs::remove_dir(save_dir.join(".pixidl-partial")).await;
     Ok(EngineOutcome::Completed { filename })
 }
 
@@ -519,16 +519,16 @@ mod tests {
 
     #[test]
     fn progress_lines() {
-        let p = parse_progress_line("NEXAPROG|downloading|1024|4096|NA|512.5|6").unwrap();
+        let p = parse_progress_line("PIXIDLPROG|downloading|1024|4096|NA|512.5|6").unwrap();
         assert_eq!(p.downloaded, Some(1024));
         assert_eq!(p.total, Some(4096));
         assert_eq!(p.speed, Some(512));
         assert_eq!(p.eta, Some(6));
-        let p = parse_progress_line("NEXAPROG|downloading|10|NA|2000.0|NA|NA").unwrap();
+        let p = parse_progress_line("PIXIDLPROG|downloading|10|NA|2000.0|NA|NA").unwrap();
         assert_eq!(p.total, Some(2000));
         assert_eq!(p.speed, None);
         assert!(parse_progress_line("[download] 10%").is_none());
-        assert!(parse_progress_line("NEXAPROG|x").is_none());
+        assert!(parse_progress_line("PIXIDLPROG|x").is_none());
     }
 
     #[test]

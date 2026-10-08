@@ -11,10 +11,10 @@ import { basename, buildItem, isHttpUrl, meetsMinSize, normalizeLinks, supported
 const t = (key, subs) => api.i18n.getMessage(key, subs);
 
 const MENU = Object.freeze({
-  link: "nexa-download-link",
-  media: "nexa-download-media",
-  page: "nexa-send-page",
-  selection: "nexa-download-selection",
+  link: "pixidl-download-link",
+  media: "pixidl-download-media",
+  page: "pixidl-send-page",
+  selection: "pixidl-download-selection",
 });
 
 async function setupMenus() {
@@ -87,8 +87,8 @@ api.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-// Optional capture of browser downloads. Nexa is asked first; the browser
-// download is cancelled only after Nexa accepted it, so any failure leaves the
+// Optional capture of browser downloads. pixidl is asked first; the browser
+// download is cancelled only after pixidl accepted it, so any failure leaves the
 // browser to finish the download as usual.
 api.downloads.onCreated.addListener(async (item) => {
   const settings = await loadSettings();

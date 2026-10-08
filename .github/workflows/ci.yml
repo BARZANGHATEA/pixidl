@@ -83,16 +83,16 @@ jobs:
         run: |
           $installer = "${{ steps.installer.outputs.path }}"
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
-          $dir = Join-Path $env:LOCALAPPDATA "Nexa Download Manager"
-          foreach ($f in @("nexa-download-manager.exe", "nexa-native-host.exe", "bin\yt-dlp.exe", "THIRD-PARTY-NOTICES.md", "uninstall.exe")) {
+          $dir = Join-Path $env:LOCALAPPDATA "pixidl"
+          foreach ($f in @("pixidl.exe", "pixidl-native-host.exe", "bin\yt-dlp.exe", "THIRD-PARTY-NOTICES.md", "uninstall.exe")) {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
           }
-          & (Join-Path $dir "nexa-native-host.exe") --version
-          $status = & (Join-Path $dir "nexa-native-host.exe") --status | ConvertFrom-Json
+          & (Join-Path $dir "pixidl-native-host.exe") --version
+          $status = & (Join-Path $dir "pixidl-native-host.exe") --status | ConvertFrom-Json
           $status | Format-Table browser, registered, manifestPath
-          foreach ($key in @("HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.nexa.downloadmanager",
-                             "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.nexa.downloadmanager",
-                             "HKCU:\Software\Mozilla\NativeMessagingHosts\com.nexa.downloadmanager")) {
+          foreach ($key in @("HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.pixidl.app",
+                             "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.pixidl.app",
+                             "HKCU:\Software\Mozilla\NativeMessagingHosts\com.pixidl.app")) {
             if (-not (Test-Path $key)) { throw "native messaging key missing: $key" }
             $manifest = (Get-ItemProperty $key)."(default)"
             if (-not (Test-Path $manifest)) { throw "manifest missing: $manifest" }
@@ -101,7 +101,7 @@ jobs:
       - name: Launch app and talk to it through the native host
         shell: pwsh
         run: |
-          $dir = Join-Path $env:LOCALAPPDATA "Nexa Download Manager"
+          $dir = Join-Path $env:LOCALAPPDATA "pixidl"
           # Speak Chrome's native-messaging framing to the installed host; it starts the app.
           $py = @'
           import json, struct, subprocess, sys, time
@@ -124,24 +124,24 @@ jobs:
           print(s); assert s["download"]["status"] == "completed", s
           '@
           $py | Out-File -Encoding utf8 nm_test.py
-          python nm_test.py (Join-Path $dir "nexa-native-host.exe")
+          python nm_test.py (Join-Path $dir "pixidl-native-host.exe")
           $file = Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\Rust.gitignore"
           if (-not (Test-Path $file)) { throw "downloaded file not found: $file" }
-          Get-Process nexa-download-manager -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process pixidl -ErrorAction SilentlyContinue | Stop-Process -Force
       - name: Uninstall silently and verify cleanup
         shell: pwsh
         run: |
-          $dir = Join-Path $env:LOCALAPPDATA "Nexa Download Manager"
+          $dir = Join-Path $env:LOCALAPPDATA "pixidl"
           Start-Process -FilePath (Join-Path $dir "uninstall.exe") -ArgumentList "/S" -Wait
           Start-Sleep -Seconds 5
-          if (Test-Path (Join-Path $dir "nexa-download-manager.exe")) { throw "app still installed" }
-          foreach ($key in @("HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.nexa.downloadmanager",
-                             "HKCU:\Software\Mozilla\NativeMessagingHosts\com.nexa.downloadmanager")) {
+          if (Test-Path (Join-Path $dir "pixidl.exe")) { throw "app still installed" }
+          foreach ($key in @("HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.pixidl.app",
+                             "HKCU:\Software\Mozilla\NativeMessagingHosts\com.pixidl.app")) {
             if (Test-Path $key) { throw "native messaging key left behind: $key" }
           }
           Write-Host "Uninstall removed the app and the browser integration."
       - uses: actions/upload-artifact@v4
         with:
-          name: nexa-download-manager-windows-installer
+          name: pixidl-windows-installer
           path: target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error

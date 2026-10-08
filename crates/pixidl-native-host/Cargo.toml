@@ -1,12 +1,12 @@
 [package]
-name = "nexa-native-host"
-description = "Native-messaging host that connects browser extensions to Nexa Download Manager"
+name = "pixidl-native-host"
+description = "Native-messaging host that connects browser extensions to pixidl"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-nexa-core = { path = "../nexa-core" }
+pixidl-core = { path = "../pixidl-core" }
 tokio = { version = "1", features = ["rt", "net", "time", "macros", "io-util"] }
 serde_json = "1"
 

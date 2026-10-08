@@ -24,7 +24,7 @@ export interface ConfirmRequest {
   onConfirm: (checked: boolean) => void;
 }
 
-const SORT_KEY = "nexa.sort";
+const SORT_KEY = "pixidl.sort";
 function initialSort(): SortKey {
   try {
     const v = localStorage.getItem(SORT_KEY);

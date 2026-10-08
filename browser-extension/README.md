@@ -1,36 +1,36 @@
-# Nexa Download Manager browser extension
+# pixidl browser extension
 
-The reference extension for Nexa Download Manager. It sends links, media and
-(optionally) browser downloads to the Nexa desktop app through
+The reference extension for pixidl. It sends links, media and
+(optionally) browser downloads to the pixidl desktop app through
 [Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
 It is a Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave,
 Vivaldi) and Firefox 128 or newer, written in plain ES modules with no build step.
 
 ## Features
 
-- **Context menus**: "Download with Nexa" on links, "Download media with Nexa"
-  on images, video and audio, "Send this page to Nexa" on pages (Nexa's
-  extractor handles media pages), and "Download all links in selection with Nexa".
+- **Context menus**: "Download with pixidl" on links, "Download media with pixidl"
+  on images, video and audio, "Send this page to pixidl" on pages (pixidl's
+  extractor handles media pages), and "Download all links in selection with pixidl".
 - **Popup**: connection status, "Send current page", "Download all links on
   this page" with an optional file-type filter (for example `zip, pdf`), and the
   active downloads with pause, resume and cancel.
 - **Capture browser downloads** (off by default, under Options in the popup):
-  http(s) downloads started in the browser are handed to Nexa. The browser
-  download is cancelled only after Nexa has accepted it. If Nexa is not running
+  http(s) downloads started in the browser are handed to pixidl. The browser
+  download is cancelled only after pixidl has accepted it. If pixidl is not running
   or rejects the link, the browser keeps downloading as usual. `blob:` and
   `data:` downloads and private-window downloads are never captured, and you can
-  set a minimum file size. Captured downloads are fetched again by Nexa without
+  set a minimum file size. Captured downloads are fetched again by pixidl without
   the browser's cookies, so leave capturing off for sites where downloads need
   a signed-in session.
 - English and Persian (right-to-left) interface.
 
 ## Install
 
-The Nexa installer registers the native messaging host
-(`com.nexa.downloadmanager`) for every supported browser automatically. Nexa
-must be running for downloads to be added. If the extension says "Nexa is not
-running or not installed", start Nexa, or register the host again with
-`nexa-native-host --register`.
+The pixidl installer registers the native messaging host
+(`com.pixidl.app`) for every supported browser automatically. pixidl
+must be running for downloads to be added. If the extension says "pixidl is not
+running or not installed", start pixidl, or register the host again with
+`pixidl-native-host --register`.
 
 ### Chrome, Edge, Brave, Vivaldi
 
@@ -49,14 +49,14 @@ out of the box.
 
 Temporary add-ons are removed when Firefox restarts. For a permanent install
 the add-on must be signed by [addons.mozilla.org](https://addons.mozilla.org)
-(AMO). The add-on ID is `nexa@nexa-download-manager.app`, which the native host
+(AMO). The add-on ID is `pixidl@pixidl.app`, which the native host
 allows by default.
 
 ### Using a different or modified extension
 
 The native host only answers extensions it knows. If you publish a fork, load
 the extension without the `key` field (which gives it a different ID), or use a
-different Firefox add-on ID, add that ID in Nexa under
+different Firefox add-on ID, add that ID in pixidl under
 **Settings → Browser integration → allowed extension IDs** (Chromium IDs and
 Firefox add-on IDs are listed separately). Browser integration must also be
 turned on there; otherwise every request except `ping` is answered with
@@ -89,7 +89,7 @@ codes are `invalid_json`, `message_too_large`, `unsupported_version`,
 ## Privacy
 
 No data leaves your computer. The extension makes no network requests, has no
-analytics and loads no remote code. It talks only to the Nexa app on the same
+analytics and loads no remote code. It talks only to the pixidl app on the same
 machine, and only sends the URLs you choose (plus the page they came from as the
 referrer). With capturing turned on, it also sends the URLs of the downloads you
 start in the browser. Link collection reads a page only when you click a menu

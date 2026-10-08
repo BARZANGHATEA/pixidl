@@ -1,4 +1,4 @@
-# Building Nexa Download Manager
+# Building pixidl
 
 ## Prerequisites
 
@@ -23,10 +23,10 @@ npm run dev
 ```
 
 This builds the native messaging host sidecar in debug mode
-(`src-tauri/binaries/nexa-native-host-<target-triple>`), starts Vite on port 1420
+(`src-tauri/binaries/pixidl-native-host-<target-triple>`), starts Vite on port 1420
 and launches the app with hot reload. App data goes to
-`%APPDATA%\com.nexa.downloadmanager` (Linux: `~/.local/share/com.nexa.downloadmanager`).
-Set `NEXA_DATA_DIR` to use a separate data folder, and `NEXA_LOG=debug` for verbose logs.
+`%APPDATA%\com.pixidl.app` (Linux: `~/.local/share/com.pixidl.app`).
+Set `PIXIDL_DATA_DIR` to use a separate data folder, and `PIXIDL_LOG=debug` for verbose logs.
 
 Without a desktop app you can work on the UI alone with `npm run dev:web`. Backend
 calls fail there because there is no Tauri runtime.
@@ -74,16 +74,16 @@ npm run package:windows
    (`yt-dlp.exe`) and verifies it against the release's `SHA2-256SUMS`. If the
    checksums do not match, the build fails. Pin a version with
    `YTDLP_VERSION=2026.08.19`.
-2. `scripts/build-native-host.mjs` builds `nexa-native-host.exe` (release).
+2. `scripts/build-native-host.mjs` builds `pixidl-native-host.exe` (release).
 3. `tauri build --bundles nsis` builds the NSIS installer at
-   `target/release/bundle/nsis/Nexa Download Manager_<version>_x64-setup.exe`.
+   `target/release/bundle/nsis/pixidl_<version>_x64-setup.exe`.
 
 What the installer does:
 
-- installs per user to `%LOCALAPPDATA%\Nexa Download Manager` (no admin rights
+- installs per user to `%LOCALAPPDATA%\pixidl` (no admin rights
   needed) and creates the Start menu shortcut
-- installs `nexa-native-host.exe` and the bundled `bin\yt-dlp.exe`
-- runs `nexa-native-host.exe --register` (`installer/hooks.nsh`), which registers
+- installs `pixidl-native-host.exe` and the bundled `bin\yt-dlp.exe`
+- runs `pixidl-native-host.exe --register` (`installer/hooks.nsh`), which registers
   the host for Chrome, Edge, Brave, Chromium, Vivaldi and Firefox
 - associates `.torrent` files with the app
 - on uninstall, runs `--unregister`, stops the running app and removes the
@@ -109,12 +109,12 @@ node scripts/fetch-engines.mjs && node scripts/build-native-host.mjs
 npx tauri build --target x86_64-pc-windows-gnu --bundles nsis
 
 # Run the Rust test suites as Windows executables:
-CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine cargo test -p nexa-core -p nexa-native-host --target x86_64-pc-windows-gnu
+CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine cargo test -p pixidl-core -p pixidl-native-host --target x86_64-pc-windows-gnu
 
 # Silent install / uninstall in a Wine prefix (Wine has no WebView2, so first
 # mark it as installed the way Windows 10/11 report it):
 wine reg add 'HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' /v pv /t REG_SZ /d 130.0.0.0 /f
-wine "target/x86_64-pc-windows-gnu/release/bundle/nsis/Nexa Download Manager_1.0.0_x64-setup.exe" /S
+wine "target/x86_64-pc-windows-gnu/release/bundle/nsis/pixidl_1.0.0_x64-setup.exe" /S
 ```
 
 The GUI itself cannot run under Wine because WebView2 is missing.

@@ -1,16 +1,16 @@
 {
-  "extName": { "message": "Nexa Download Manager" },
-  "extDescription": { "message": "Send links, media and browser downloads to the Nexa Download Manager desktop app." },
-  "actionTitle": { "message": "Nexa Download Manager" },
+  "extName": { "message": "pixidl" },
+  "extDescription": { "message": "Send links, media and browser downloads to the pixidl desktop app." },
+  "actionTitle": { "message": "pixidl" },
 
-  "menuDownloadLink": { "message": "Download with Nexa" },
-  "menuDownloadMedia": { "message": "Download media with Nexa" },
-  "menuSendPage": { "message": "Send this page to Nexa" },
-  "menuDownloadSelection": { "message": "Download all links in selection with Nexa" },
+  "menuDownloadLink": { "message": "Download with pixidl" },
+  "menuDownloadMedia": { "message": "Download media with pixidl" },
+  "menuSendPage": { "message": "Send this page to pixidl" },
+  "menuDownloadSelection": { "message": "Download all links in selection with pixidl" },
 
-  "statusChecking": { "message": "Connecting to Nexa..." },
+  "statusChecking": { "message": "Connecting to pixidl..." },
   "statusConnected": {
-    "message": "Connected to Nexa v$VERSION$",
+    "message": "Connected to pixidl v$VERSION$",
     "placeholders": { "version": { "content": "$1", "example": "1.0.0" } }
   },
 
@@ -26,22 +26,22 @@
   "filterLabel": { "message": "Only these file types (optional)" },
   "filterPlaceholder": { "message": "e.g. zip, pdf, mp4" },
   "sendLinks": {
-    "message": "Send $COUNT$ links to Nexa",
+    "message": "Send $COUNT$ links to pixidl",
     "placeholders": { "count": { "content": "$1", "example": "12" } }
   },
-  "sending": { "message": "Sending to Nexa..." },
+  "sending": { "message": "Sending to pixidl..." },
   "sentOne": {
-    "message": "Added to Nexa: $NAME$",
+    "message": "Added to pixidl: $NAME$",
     "placeholders": { "name": { "content": "$1", "example": "report.pdf" } }
   },
   "addedCount": {
-    "message": "Nexa added $ADDED$ of $TOTAL$ links",
+    "message": "pixidl added $ADDED$ of $TOTAL$ links",
     "placeholders": {
       "added": { "content": "$1", "example": "12" },
       "total": { "content": "$2", "example": "12" }
     }
   },
-  "noneAdded": { "message": "Nexa did not add any of the links" },
+  "noneAdded": { "message": "pixidl did not add any of the links" },
   "noLinksInSelection": { "message": "No downloadable links were found in the selection" },
 
   "activeDownloads": { "message": "Active downloads" },
@@ -59,20 +59,20 @@
 
   "settingsTitle": { "message": "Options" },
   "captureLabel": { "message": "Capture browser downloads" },
-  "captureHint": { "message": "Downloads you start in the browser are handed to Nexa. If Nexa cannot take one, the browser downloads it as usual. Private windows are never captured." },
+  "captureHint": { "message": "Downloads you start in the browser are handed to pixidl. If pixidl cannot take one, the browser downloads it as usual. Private windows are never captured." },
   "minSizeLabel": { "message": "Only capture files of at least (MB, 0 = any size)" },
 
-  "notifySentTitle": { "message": "Sent to Nexa" },
-  "notifyFailedTitle": { "message": "Nexa could not take this download" },
+  "notifySentTitle": { "message": "Sent to pixidl" },
+  "notifyFailedTitle": { "message": "pixidl could not take this download" },
   "captureFallback": {
     "message": "Downloading in the browser instead. $REASON$",
-    "placeholders": { "reason": { "content": "$1", "example": "Nexa is not running or not installed" } }
+    "placeholders": { "reason": { "content": "$1", "example": "pixidl is not running or not installed" } }
   },
 
-  "errAppUnavailable": { "message": "Nexa is not running or not installed" },
-  "errUnauthorized": { "message": "Browser integration is turned off in Nexa settings" },
-  "errInvalidUrl": { "message": "Nexa cannot download this type of link" },
-  "errUnsupportedVersion": { "message": "This extension and the Nexa app are incompatible versions. Please update both." },
+  "errAppUnavailable": { "message": "pixidl is not running or not installed" },
+  "errUnauthorized": { "message": "Browser integration is turned off in pixidl settings" },
+  "errInvalidUrl": { "message": "pixidl cannot download this type of link" },
+  "errUnsupportedVersion": { "message": "This extension and the pixidl app are incompatible versions. Please update both." },
   "errCannotAccessPage": { "message": "Links cannot be read from this page" },
   "errUnknown": { "message": "Something went wrong" }
 }

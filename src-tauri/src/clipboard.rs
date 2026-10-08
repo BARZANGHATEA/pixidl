@@ -39,9 +39,9 @@ pub fn spawn(app: AppHandle) {
             if first {
                 continue; // don't react to whatever was already copied at startup
             }
-            if let Ok((url, engine)) = nexa_core::detector::detect(text) {
+            if let Ok((url, engine)) = pixidl_core::detector::detect(text) {
                 if url.scheme() != "ftp" {
-                    let _ = app.emit("nexa://clipboard-url", serde_json::json!({ "url": url.as_str(), "engine": engine }));
+                    let _ = app.emit("pixidl://clipboard-url", serde_json::json!({ "url": url.as_str(), "engine": engine }));
                 }
             }
         }

@@ -1,4 +1,4 @@
-//! Nexa Download Manager core.
+//! pixidl core.
 //!
 //! This crate contains everything that does not depend on the desktop shell:
 //! persistence, settings, the download engines, the queue/manager and the
@@ -21,5 +21,5 @@ pub mod tools;
 pub mod types;
 
 pub use error::{DownloadError, Result};
-pub const APP_NAME: &str = "Nexa Download Manager";
+pub const APP_NAME: &str = "pixidl";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

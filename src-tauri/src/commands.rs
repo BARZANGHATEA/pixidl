@@ -4,14 +4,14 @@
 use std::path::{Path, PathBuf};
 
 use base64::Engine as _;
-use nexa_core::browser::{self, BrowserRegistration};
-use nexa_core::db::{Category, DownloadEvent};
-use nexa_core::detector::UrlInspection;
-use nexa_core::engines::torrent::{TorrentEngineStatus, TorrentInfo};
-use nexa_core::manager::AddSource;
-use nexa_core::settings::Settings;
-use nexa_core::tools::ToolStatus;
-use nexa_core::types::*;
+use pixidl_core::browser::{self, BrowserRegistration};
+use pixidl_core::db::{Category, DownloadEvent};
+use pixidl_core::detector::UrlInspection;
+use pixidl_core::engines::torrent::{TorrentEngineStatus, TorrentInfo};
+use pixidl_core::manager::AddSource;
+use pixidl_core::settings::Settings;
+use pixidl_core::tools::ToolStatus;
+use pixidl_core::types::*;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -65,11 +65,11 @@ pub async fn read_torrent_file(state: State<'_, AppState>, path: String) -> CmdR
     if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("torrent")) {
         return Err(CommandError::msg(ErrorKind::InvalidUrl, "Please choose a .torrent file"));
     }
-    let meta = std::fs::metadata(&p).map_err(|e| CommandError::from(nexa_core::DownloadError::from_io(&e)))?;
+    let meta = std::fs::metadata(&p).map_err(|e| CommandError::from(pixidl_core::DownloadError::from_io(&e)))?;
     if meta.len() > 16 * 1024 * 1024 {
         return Err(CommandError::msg(ErrorKind::InvalidUrl, "Torrent file is too large"));
     }
-    let bytes = std::fs::read(&p).map_err(|e| CommandError::from(nexa_core::DownloadError::from_io(&e)))?;
+    let bytes = std::fs::read(&p).map_err(|e| CommandError::from(pixidl_core::DownloadError::from_io(&e)))?;
     let info = state.mgr.inspect_torrent_file(bytes.clone()).await?;
     Ok(TorrentFilePreview {
         info,
@@ -196,7 +196,7 @@ pub fn open_downloads_folder(app: AppHandle, state: State<'_, AppState>) -> CmdR
 
 #[tauri::command]
 pub fn open_logs_folder(app: AppHandle) -> CmdResult<()> {
-    let dir = nexa_core::paths::logs_dir();
+    let dir = pixidl_core::paths::logs_dir();
     let _ = std::fs::create_dir_all(&dir);
     app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| CommandError { kind: ErrorKind::Filesystem, message: "Could not open the folder".into(), detail: Some(e.to_string()) })
 }
@@ -230,7 +230,7 @@ pub async fn update_settings(app: AppHandle, state: State<'_, AppState>, setting
 pub async fn complete_first_run(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> CmdResult<Vec<String>> {
     let mut s = settings;
     s.first_run_completed = true;
-    std::fs::create_dir_all(&s.default_download_dir).map_err(|e| CommandError::from(nexa_core::DownloadError::fs("Cannot create the download folder", &e)))?;
+    std::fs::create_dir_all(&s.default_download_dir).map_err(|e| CommandError::from(pixidl_core::DownloadError::fs("Cannot create the download folder", &e)))?;
     update_settings(app, state, s).await
 }
 
@@ -271,7 +271,7 @@ pub async fn get_engine_status(state: State<'_, AppState>) -> CmdResult<EngineSt
 
 #[tauri::command]
 pub async fn install_ytdlp(state: State<'_, AppState>) -> CmdResult<String> {
-    let p = state.mgr.install_ytdlp(&nexa_core::paths::engines_dir()).await?;
+    let p = state.mgr.install_ytdlp(&pixidl_core::paths::engines_dir()).await?;
     Ok(p.display().to_string())
 }
 
@@ -303,7 +303,7 @@ pub fn get_browser_integration(state: State<'_, AppState>) -> BrowserIntegration
         host_installed: installed,
         browsers: host.as_ref().filter(|_| installed).map(|h| browser::status(h)).unwrap_or_default(),
         reference_extension_id: browser::REFERENCE_EXTENSION_ID.into(),
-        protocol_version: nexa_core::protocol::PROTOCOL_VERSION,
+        protocol_version: pixidl_core::protocol::PROTOCOL_VERSION,
     }
 }
 
@@ -335,14 +335,14 @@ pub struct AppInfo {
 #[tauri::command]
 pub fn get_app_info(app: AppHandle) -> AppInfo {
     AppInfo {
-        name: nexa_core::APP_NAME.into(),
+        name: pixidl_core::APP_NAME.into(),
         version: app.package_info().version.to_string(),
         identifier: app.config().identifier.clone(),
-        data_dir: nexa_core::paths::data_dir().display().to_string(),
-        logs_dir: nexa_core::paths::logs_dir().display().to_string(),
+        data_dir: pixidl_core::paths::data_dir().display().to_string(),
+        logs_dir: pixidl_core::paths::logs_dir().display().to_string(),
         platform: std::env::consts::OS.into(),
         arch: std::env::consts::ARCH.into(),
-        protocol_version: nexa_core::protocol::PROTOCOL_VERSION,
+        protocol_version: pixidl_core::protocol::PROTOCOL_VERSION,
         tauri_version: tauri::VERSION.into(),
     }
 }

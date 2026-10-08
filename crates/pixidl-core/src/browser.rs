@@ -2,7 +2,7 @@
 //!
 //! Generates the host manifests and registers them (HKCU registry keys on
 //! Windows, per-user manifest folders on Linux/macOS). Used by the installer
-//! (`nexa-native-host --register`), by the app at startup and by
+//! (`pixidl-native-host --register`), by the app at startup and by
 //! Settings → Browser integration → Reinstall.
 
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use crate::paths::{native_messaging_dir, NATIVE_HOST_NAME};
 /// `browser-extension/manifest.json`).
 pub const REFERENCE_EXTENSION_ID: &str = "ndlafmjbcbcjmkegfelbhgknmajgdbna";
 /// Gecko ID of the reference extension for Firefox.
-pub const REFERENCE_FIREFOX_ID: &str = "nexa@nexa-download-manager.app";
+pub const REFERENCE_FIREFOX_ID: &str = "pixidl@pixidl.app";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -111,7 +111,7 @@ pub fn chromium_manifest(host_path: &Path, extension_ids: &[String]) -> serde_js
     ids.dedup();
     serde_json::json!({
         "name": NATIVE_HOST_NAME,
-        "description": "Nexa Download Manager browser integration",
+        "description": "pixidl browser integration",
         "path": host_path.to_string_lossy(),
         "type": "stdio",
         "allowed_origins": ids.iter().map(|i| format!("chrome-extension://{i}/")).collect::<Vec<_>>(),
@@ -126,7 +126,7 @@ pub fn firefox_manifest(host_path: &Path, addon_ids: &[String]) -> serde_json::V
     ids.dedup();
     serde_json::json!({
         "name": NATIVE_HOST_NAME,
-        "description": "Nexa Download Manager browser integration",
+        "description": "pixidl browser integration",
         "path": host_path.to_string_lossy(),
         "type": "stdio",
         "allowed_extensions": ids,
@@ -252,7 +252,7 @@ fn manifest_path_for(b: Browser) -> Option<PathBuf> {
 pub fn default_host_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let name = crate::tools::exe_name("nexa-native-host");
+    let name = crate::tools::exe_name("pixidl-native-host");
     let p = dir.join(&name);
     Some(p)
 }
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     fn manifests_have_required_fields() {
-        let m = chromium_manifest(Path::new("/opt/nexa/nexa-native-host"), &["abcdefghijklmnopabcdefghijklmnop".into()]);
+        let m = chromium_manifest(Path::new("/opt/pixidl/pixidl-native-host"), &["abcdefghijklmnopabcdefghijklmnop".into()]);
         assert_eq!(m["name"], NATIVE_HOST_NAME);
         assert_eq!(m["type"], "stdio");
         let origins = m["allowed_origins"].as_array().unwrap();

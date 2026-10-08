@@ -1,6 +1,6 @@
-//! Nexa Download Manager — desktop shell (Tauri 2).
+//! pixidl — desktop shell (Tauri 2).
 //!
-//! Wires the Tauri-independent `nexa-core` into the desktop: IPC commands,
+//! Wires the Tauri-independent `pixidl-core` into the desktop: IPC commands,
 //! UI events, tray, notifications, single-instance handling, autostart,
 //! clipboard monitoring, the browser bridge and graceful shutdown.
 
@@ -17,16 +17,16 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use base64::Engine as _;
-use nexa_core::bridge::BridgeServer;
-use nexa_core::manager::{AddSource, DownloadManager, ManagerConfig};
-use nexa_core::settings::CloseBehavior;
-use nexa_core::types::{AddDownloadRequest, ManagerEvent};
+use pixidl_core::bridge::BridgeServer;
+use pixidl_core::manager::{AddSource, DownloadManager, ManagerConfig};
+use pixidl_core::settings::CloseBehavior;
+use pixidl_core::types::{AddDownloadRequest, ManagerEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
 use crate::state::AppState;
 
-pub const EVENT_CHANNEL: &str = "nexa://event";
+pub const EVENT_CHANNEL: &str = "pixidl://event";
 
 fn window_is_active(app: &AppHandle) -> bool {
     app.get_webview_window("main")
@@ -51,7 +51,7 @@ fn on_manager_event(app: &AppHandle, event: ManagerEvent) {
     let s = state.mgr.settings();
     match &event {
         ManagerEvent::DownloadCompleted { download } if s.notify_completed => {
-            let title = if download.engine == nexa_core::types::EngineKind::Torrent { "Torrent completed" } else { "Download completed" };
+            let title = if download.engine == pixidl_core::types::EngineKind::Torrent { "Torrent completed" } else { "Download completed" };
             notify(app, title, &download.filename);
         }
         ManagerEvent::DownloadFailed { download } if s.notify_failed => {
@@ -80,14 +80,14 @@ pub async fn apply_browser_integration(app: &AppHandle) {
         return;
     }
     if state.bridge.lock().is_none() {
-        match BridgeServer::start(state.mgr.clone(), &nexa_core::paths::bridge_file()).await {
+        match BridgeServer::start(state.mgr.clone(), &pixidl_core::paths::bridge_file()).await {
             Ok(b) => *state.bridge.lock() = Some(b),
             Err(e) => tracing::error!(error = %e, "could not start browser bridge"),
         }
     }
     // Keep the host registration pointing at this installation.
-    if let Some(host) = nexa_core::browser::default_host_path().filter(|h| h.exists()) {
-        let res = nexa_core::browser::register(&host, &s.allowed_extension_ids, &s.allowed_firefox_ids);
+    if let Some(host) = pixidl_core::browser::default_host_path().filter(|h| h.exists()) {
+        let res = pixidl_core::browser::register(&host, &s.allowed_extension_ids, &s.allowed_firefox_ids);
         let failed: Vec<_> = res.iter().filter(|r| !r.registered).map(|r| r.label.clone()).collect();
         if !failed.is_empty() {
             tracing::warn!(?failed, "native host registration failed for some browsers");
@@ -124,7 +124,7 @@ fn handle_args(app: &AppHandle, args: &[String]) {
         let state = app.state::<AppState>();
         for r in requests {
             if let Err(e) = state.mgr.add(r, AddSource::User).await {
-                let _ = app.emit("nexa://error", serde_json::json!({ "message": e.message, "detail": e.detail }));
+                let _ = app.emit("pixidl://error", serde_json::json!({ "message": e.message, "detail": e.detail }));
             }
         }
         tray::show_main(&app);
@@ -149,12 +149,12 @@ pub fn quit(app: AppHandle) {
 }
 
 pub fn run() {
-    let data_dir = nexa_core::paths::data_dir();
-    let log_guard = logging::init(&nexa_core::paths::logs_dir());
+    let data_dir = pixidl_core::paths::data_dir();
+    let log_guard = logging::init(&pixidl_core::paths::logs_dir());
     std::panic::set_hook(Box::new(|info| {
         tracing::error!(panic = %info, "panic");
     }));
-    tracing::info!(version = nexa_core::APP_VERSION, "starting Nexa Download Manager");
+    tracing::info!(version = pixidl_core::APP_VERSION, "starting pixidl");
     let background = std::env::args().any(|a| a == "--background");
 
     tauri::Builder::default()
@@ -171,7 +171,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--background"])))
         .setup(move |app| {
             let handle = app.handle().clone();
-            let mut tool_dirs = vec![nexa_core::paths::engines_dir()];
+            let mut tool_dirs = vec![pixidl_core::paths::engines_dir()];
             if let Ok(res) = app.path().resource_dir() {
                 tool_dirs.insert(0, res.join("bin"));
             }
@@ -259,7 +259,7 @@ pub fn run() {
             commands::quit_app,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Nexa Download Manager")
+        .expect("error while building pixidl")
         .run(move |app, event| {
             let _keep = &log_guard;
             if let tauri::RunEvent::ExitRequested { api, code, .. } = event {

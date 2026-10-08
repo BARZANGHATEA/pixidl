@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 
-use nexa_core::bridge::BridgeServer;
-use nexa_core::manager::DownloadManager;
+use pixidl_core::bridge::BridgeServer;
+use pixidl_core::manager::DownloadManager;
 use parking_lot::Mutex;
 
 pub struct AppState {

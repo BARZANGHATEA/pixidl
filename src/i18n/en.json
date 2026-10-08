@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Nexa",
-    "fullName": "Nexa Download Manager",
+    "name": "pixidl",
+    "fullName": "pixidl",
     "subtitle": "Download Manager",
     "tagline": "Simple. Fast. Powerful."
   },
@@ -340,14 +340,14 @@
     "checkUpdates": "Check for updates",
     "updatesNote": "Automatic updates are not enabled in this build. New versions are published as signed installers on the project's releases page.",
     "dataFolder": "Data folder",
-    "privacy": "Nexa does not collect analytics and never sends your data anywhere."
+    "privacy": "pixidl does not collect analytics and never sends your data anywhere."
   },
   "firstRun": {
-    "welcome": "Welcome to Nexa",
+    "welcome": "Welcome to pixidl",
     "intro": "A few quick choices and you're ready. You can change everything later in Settings.",
     "folder": "Where should downloads be saved?",
     "browser": "Enable browser integration",
-    "startup": "Launch Nexa when I sign in",
+    "startup": "Launch pixidl when I sign in",
     "tray": "Keep running in the tray when the window is closed",
     "engines": "Engines",
     "start": "Get started"

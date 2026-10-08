@@ -1,4 +1,4 @@
-//! `nexa-native-host` — the native-messaging host for Nexa Download Manager.
+//! `pixidl-native-host` — the native-messaging host for pixidl.
 //!
 //! Started by the browser with stdio connected to the extension. Each message
 //! is validated locally, then forwarded over the authenticated loopback bridge
@@ -14,9 +14,9 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use nexa_core::bridge::{read_info, BridgeClient, BridgeInfo};
-use nexa_core::protocol::{self, framing, ErrorCode, ProtocolError};
-use nexa_core::{browser, paths};
+use pixidl_core::bridge::{read_info, BridgeClient, BridgeInfo};
+use pixidl_core::protocol::{self, framing, ErrorCode, ProtocolError};
+use pixidl_core::{browser, paths};
 
 const LOG_LIMIT: u64 = 1024 * 1024;
 
@@ -28,7 +28,7 @@ fn log(msg: &str) {
         let _ = std::fs::rename(&path, dir.join("native-host.old.log"));
     }
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
-        let _ = writeln!(f, "{} [{}] {}", nexa_core::db::now(), std::process::id(), msg);
+        let _ = writeln!(f, "{} [{}] {}", pixidl_core::db::now(), std::process::id(), msg);
     }
 }
 
@@ -38,16 +38,16 @@ fn reply(out: &mut impl Write, v: &serde_json::Value) -> io::Result<()> {
 
 fn app_candidates() -> Vec<PathBuf> {
     let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) else { return vec![] };
-    ["nexa-download-manager", "Nexa Download Manager"]
+    ["pixidl", "pixidl"]
         .iter()
-        .map(|n| dir.join(nexa_core::tools::exe_name(n)))
+        .map(|n| dir.join(pixidl_core::tools::exe_name(n)))
         .filter(|p| p.is_file())
         .collect()
 }
 
 fn launch_app() -> bool {
     // Used by automated tests: never start the GUI.
-    if std::env::var_os("NEXA_HOST_NO_LAUNCH").is_some() {
+    if std::env::var_os("PIXIDL_HOST_NO_LAUNCH").is_some() {
         return false;
     }
     for app in app_candidates() {
@@ -107,7 +107,7 @@ async fn connect_or_launch() -> Option<BridgeClient> {
 }
 
 fn unavailable(id: Option<&str>) -> serde_json::Value {
-    protocol::error_response(id, &ProtocolError { code: ErrorCode::AppUnavailable, message: "Nexa Download Manager is not running and could not be started".into() })
+    protocol::error_response(id, &ProtocolError { code: ErrorCode::AppUnavailable, message: "pixidl is not running and could not be started".into() })
 }
 
 async fn run_host() -> i32 {
@@ -163,7 +163,7 @@ async fn run_host() -> i32 {
 }
 
 fn host_path() -> PathBuf {
-    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("nexa-native-host"))
+    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("pixidl-native-host"))
 }
 
 fn collect(args: &[String], flag: &str) -> Vec<String> {
@@ -175,7 +175,7 @@ fn main() {
     let cmd = args.get(1).map(String::as_str).unwrap_or("");
     let code = match cmd {
         "--version" => {
-            println!("nexa-native-host {} (protocol {})", nexa_core::APP_VERSION, protocol::PROTOCOL_VERSION);
+            println!("pixidl-native-host {} (protocol {})", pixidl_core::APP_VERSION, protocol::PROTOCOL_VERSION);
             0
         }
         "--register" => {

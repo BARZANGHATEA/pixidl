@@ -2,7 +2,7 @@
 // No browser globals are touched at import time, so this module is testable
 // in Node (see test/native.test.mjs).
 
-export const HOST_NAME = "com.nexa.downloadmanager";
+export const HOST_NAME = "com.pixidl.app";
 export const PROTOCOL_VERSION = 1;
 /** Maximum items per add_multiple_downloads message (enforced by the app). */
 export const MAX_BATCH = 200;
@@ -47,7 +47,7 @@ export function normalizeResponse(resp, id = null) {
 }
 
 /**
- * Returns the normalized URL string if Nexa can download it, otherwise null.
+ * Returns the normalized URL string if pixidl can download it, otherwise null.
  * Accepted: http(s) with a host, and magnet links carrying an info hash.
  * ftp is deliberately not sent (the app currently rejects it).
  */
@@ -191,7 +191,7 @@ export function formatBytes(bytes) {
   return `${unit === 0 ? value : value.toFixed(1)} ${units[unit]}`;
 }
 
-/** Whether a captured browser download is large enough to hand to Nexa. */
+/** Whether a captured browser download is large enough to hand to pixidl. */
 export function meetsMinSize(sizeBytes, minSizeMb) {
   const min = Number(minSizeMb);
   if (!Number.isFinite(min) || min <= 0) return true;

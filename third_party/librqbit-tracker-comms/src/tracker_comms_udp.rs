@@ -269,7 +269,7 @@ impl UdpTrackerClient {
         cancel_token: CancellationToken,
         bind_device: Option<&BindDevice>,
     ) -> anyhow::Result<Self> {
-        // Nexa patch: fall back to IPv4 on systems where the kernel has no
+        // pixidl patch: fall back to IPv4 on systems where the kernel has no
         // IPv6 support (EAFNOSUPPORT), instead of failing the whole session.
         let addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0);
         let sock = match UdpSocket::bind_udp(

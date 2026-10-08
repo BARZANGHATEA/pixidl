@@ -124,7 +124,7 @@ test("manifest is valid and complete", () => {
   const m = readJson("manifest.json");
   assert.equal(m.manifest_version, 3);
   assert.equal(m.default_locale, "en");
-  assert.equal(m.browser_specific_settings.gecko.id, "nexa@nexa-download-manager.app");
+  assert.equal(m.browser_specific_settings.gecko.id, "pixidl@pixidl.app");
   assert.equal(m.background.service_worker, "background.js");
   assert.deepEqual(m.background.scripts, ["background.js"]);
   assert.ok(typeof m.key === "string" && m.key.length > 300);

@@ -17,7 +17,7 @@ export function AboutPage() {
       <div className="settings-body">
         <div className="section" style={{ gap: 18 }}>
           <div className="row" style={{ gap: 16 }}>
-            <img src="/nexa.svg" alt="" width={64} height={64} />
+            <img src="/pixidl.svg" alt="" width={64} height={64} />
             <div>
               <h1 id="about-title" className="page-title">{t("app.fullName")}</h1>
               <div className="muted">{info ? t("about.version", { version: info.version }) : ""}</div>

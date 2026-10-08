@@ -9,8 +9,8 @@ use std::time::Duration;
 use base64::Engine as _;
 use common::*;
 use librqbit::{AddTorrent, AddTorrentOptions, CreateTorrentOptions, ListenerOptions, Session, SessionOptions};
-use nexa_core::manager::AddSource;
-use nexa_core::types::*;
+use pixidl_core::manager::AddSource;
+use pixidl_core::types::*;
 
 /// Serves `/announce` with a compact peer list containing only `peer`.
 async fn start_tracker(peer: SocketAddr) -> String {

@@ -1,9 +1,9 @@
 {
-  "name": "nexa-download-manager",
+  "name": "pixidl",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Nexa Download Manager \u2014 a fast, minimal desktop download manager",
+  "description": "pixidl \u2014 a fast, minimal desktop download manager",
   "license": "MIT",
   "scripts": {
     "dev": "node scripts/build-native-host.mjs --debug && tauri dev",
@@ -18,7 +18,7 @@
     "test:all": "npm run typecheck && npm test && cargo test --workspace",
     "typecheck": "tsc -b --noEmit",
     "lint": "tsc -b --noEmit && cargo clippy --workspace -- -D warnings",
-    "gen:types": "cargo test -p nexa-core --lib export_bindings",
+    "gen:types": "cargo test -p pixidl-core --lib export_bindings",
     "build:host": "node scripts/build-native-host.mjs",
     "package:windows": "node scripts/fetch-engines.mjs && node scripts/build-native-host.mjs && tauri build --bundles nsis",
     "fetch:engines": "node scripts/fetch-engines.mjs",

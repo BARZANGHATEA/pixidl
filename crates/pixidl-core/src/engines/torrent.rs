@@ -142,7 +142,7 @@ impl TorrentEngine {
             persistence: Some(SessionPersistenceConfig::Json { folder: Some(self.state_dir.join("session")) }),
             listen: Some(ListenerOptions { listen_addr, ipv4_only, ..Default::default() }),
             ipv4_only,
-            client_name_and_version: Some(format!("NexaDM {}", env!("CARGO_PKG_VERSION"))),
+            client_name_and_version: Some(format!("pixidl {}", env!("CARGO_PKG_VERSION"))),
             ..Default::default()
         };
         if !settings.torrent_enable_dht {

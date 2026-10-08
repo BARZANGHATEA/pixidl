@@ -3,12 +3,12 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { EngineKind, ManagerEvent, AfterQueueAction } from "../types";
 
 export const CHANNELS = {
-  manager: "nexa://event",
-  clipboardUrl: "nexa://clipboard-url",
-  navigate: "nexa://navigate",
-  error: "nexa://error",
-  powerCountdown: "nexa://power-countdown",
-  powerCancelled: "nexa://power-cancelled",
+  manager: "pixidl://event",
+  clipboardUrl: "pixidl://clipboard-url",
+  navigate: "pixidl://navigate",
+  error: "pixidl://error",
+  powerCountdown: "pixidl://power-countdown",
+  powerCancelled: "pixidl://power-cancelled",
 } as const;
 
 export interface ClipboardUrl {

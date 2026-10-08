@@ -1,34 +1,34 @@
 # Browser integration protocol (version 1)
 
-Browser extensions talk to Nexa Download Manager through **Native Messaging**.
-The browser starts `nexa-native-host(.exe)`; the host validates every message and
+Browser extensions talk to pixidl through **Native Messaging**.
+The browser starts `pixidl-native-host(.exe)`; the host validates every message and
 forwards it to the running app over a local, authenticated bridge. Nothing is ever
 exposed to the network.
 
 ```
-Extension ──native messaging (stdio)──► nexa-native-host ──127.0.0.1 TCP + token──► Nexa app
+Extension ──native messaging (stdio)──► pixidl-native-host ──127.0.0.1 TCP + token──► pixidl app
 ```
 
 ## Host registration
 
 | Item | Value |
 |---|---|
-| Host name | `com.nexa.downloadmanager` |
+| Host name | `com.pixidl.app` |
 | Reference Chromium extension ID | `ndlafmjbcbcjmkegfelbhgknmajgdbna` |
-| Reference Firefox add-on ID | `nexa@nexa-download-manager.app` |
+| Reference Firefox add-on ID | `pixidl@pixidl.app` |
 
-The installer runs `nexa-native-host --register`, and the app re-registers on every
+The installer runs `pixidl-native-host --register`, and the app re-registers on every
 start, so manifests always point at the installed host. On Windows the manifests
-live in `%APPDATA%\com.nexa.downloadmanager\native-messaging\` and are registered
+live in `%APPDATA%\com.pixidl.app\native-messaging\` and are registered
 under `HKCU\Software\{Google\Chrome, Microsoft\Edge, BraveSoftware\Brave-Browser,
-Chromium, Mozilla}\NativeMessagingHosts\com.nexa.downloadmanager`. On Linux/macOS
+Chromium, Mozilla}\NativeMessagingHosts\com.pixidl.app`. On Linux/macOS
 they are written to each browser's per-user `NativeMessagingHosts` folder.
 
 To let **your own extension** use the protocol, add its ID in
 *Settings → Browser integration → Additional Chromium extension IDs* (or Firefox
 add-on IDs). The manifests are regenerated immediately.
 
-Maintenance commands: `nexa-native-host --register [--extension-id ID]... [--firefox-id ID]...`,
+Maintenance commands: `pixidl-native-host --register [--extension-id ID]... [--firefox-id ID]...`,
 `--unregister`, `--status` (JSON), `--version`.
 
 ## Framing
@@ -112,6 +112,6 @@ running and could not be started), `unauthorized`, `internal`.
      {"url":"magnet:?xt=…","success":true,"download_id":"…"}]}
 ```
 
-The protocol is covered by `crates/nexa-core/src/protocol.rs` unit tests and the
-end-to-end test `crates/nexa-native-host/tests/native_messaging.rs`, which drives the
+The protocol is covered by `crates/pixidl-core/src/protocol.rs` unit tests and the
+end-to-end test `crates/pixidl-native-host/tests/native_messaging.rs`, which drives the
 real host binary.

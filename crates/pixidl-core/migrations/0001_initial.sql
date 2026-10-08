@@ -1,4 +1,4 @@
--- Nexa Download Manager — initial schema.
+-- pixidl — initial schema.
 
 CREATE TABLE downloads (
     id              TEXT PRIMARY KEY NOT NULL,

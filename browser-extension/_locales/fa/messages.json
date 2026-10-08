@@ -1,16 +1,16 @@
 {
-  "extName": { "message": "مدیر دانلود نکسا" },
-  "extDescription": { "message": "ارسال پیوندها، رسانه‌ها و دانلودهای مرورگر به برنامهٔ دسکتاپ مدیر دانلود نکسا." },
-  "actionTitle": { "message": "مدیر دانلود نکسا" },
+  "extName": { "message": "pixidl" },
+  "extDescription": { "message": "ارسال پیوندها، رسانه‌ها و دانلودهای مرورگر به برنامهٔ دسکتاپ pixidl." },
+  "actionTitle": { "message": "pixidl" },
 
-  "menuDownloadLink": { "message": "دانلود با نکسا" },
-  "menuDownloadMedia": { "message": "دانلود رسانه با نکسا" },
-  "menuSendPage": { "message": "ارسال این صفحه به نکسا" },
-  "menuDownloadSelection": { "message": "دانلود همهٔ پیوندهای انتخاب‌شده با نکسا" },
+  "menuDownloadLink": { "message": "دانلود با pixidl" },
+  "menuDownloadMedia": { "message": "دانلود رسانه با pixidl" },
+  "menuSendPage": { "message": "ارسال این صفحه به pixidl" },
+  "menuDownloadSelection": { "message": "دانلود همهٔ پیوندهای انتخاب‌شده با pixidl" },
 
-  "statusChecking": { "message": "در حال اتصال به نکسا..." },
+  "statusChecking": { "message": "در حال اتصال به pixidl..." },
   "statusConnected": {
-    "message": "متصل به نکسا نسخهٔ $VERSION$",
+    "message": "متصل به pixidl نسخهٔ $VERSION$",
     "placeholders": { "version": { "content": "$1", "example": "1.0.0" } }
   },
 
@@ -26,22 +26,22 @@
   "filterLabel": { "message": "فقط این نوع فایل‌ها (اختیاری)" },
   "filterPlaceholder": { "message": "مثلاً zip, pdf, mp4" },
   "sendLinks": {
-    "message": "ارسال $COUNT$ پیوند به نکسا",
+    "message": "ارسال $COUNT$ پیوند به pixidl",
     "placeholders": { "count": { "content": "$1", "example": "12" } }
   },
-  "sending": { "message": "در حال ارسال به نکسا..." },
+  "sending": { "message": "در حال ارسال به pixidl..." },
   "sentOne": {
-    "message": "به نکسا افزوده شد: $NAME$",
+    "message": "به pixidl افزوده شد: $NAME$",
     "placeholders": { "name": { "content": "$1", "example": "report.pdf" } }
   },
   "addedCount": {
-    "message": "نکسا $ADDED$ پیوند از $TOTAL$ پیوند را افزود",
+    "message": "pixidl $ADDED$ پیوند از $TOTAL$ پیوند را افزود",
     "placeholders": {
       "added": { "content": "$1", "example": "12" },
       "total": { "content": "$2", "example": "12" }
     }
   },
-  "noneAdded": { "message": "نکسا هیچ‌یک از پیوندها را نیفزود" },
+  "noneAdded": { "message": "pixidl هیچ‌یک از پیوندها را نیفزود" },
   "noLinksInSelection": { "message": "هیچ پیوند قابل دانلودی در بخش انتخاب‌شده پیدا نشد" },
 
   "activeDownloads": { "message": "دانلودهای فعال" },
@@ -59,20 +59,20 @@
 
   "settingsTitle": { "message": "گزینه‌ها" },
   "captureLabel": { "message": "دریافت دانلودهای مرورگر" },
-  "captureHint": { "message": "دانلودهایی که در مرورگر شروع می‌کنید به نکسا سپرده می‌شوند. اگر نکسا نتواند دانلودی را بپذیرد، مرورگر طبق معمول آن را دانلود می‌کند. دانلودهای پنجره‌های خصوصی هرگز دریافت نمی‌شوند." },
+  "captureHint": { "message": "دانلودهایی که در مرورگر شروع می‌کنید به pixidl سپرده می‌شوند. اگر pixidl نتواند دانلودی را بپذیرد، مرورگر طبق معمول آن را دانلود می‌کند. دانلودهای پنجره‌های خصوصی هرگز دریافت نمی‌شوند." },
   "minSizeLabel": { "message": "فقط فایل‌های دست‌کم این اندازه (مگابایت، ۰ = هر اندازه)" },
 
-  "notifySentTitle": { "message": "به نکسا ارسال شد" },
-  "notifyFailedTitle": { "message": "نکسا نتوانست این دانلود را بپذیرد" },
+  "notifySentTitle": { "message": "به pixidl ارسال شد" },
+  "notifyFailedTitle": { "message": "pixidl نتوانست این دانلود را بپذیرد" },
   "captureFallback": {
     "message": "به‌جای آن در مرورگر دانلود می‌شود. $REASON$",
-    "placeholders": { "reason": { "content": "$1", "example": "نکسا اجرا نشده یا نصب نیست" } }
+    "placeholders": { "reason": { "content": "$1", "example": "pixidl اجرا نشده یا نصب نیست" } }
   },
 
-  "errAppUnavailable": { "message": "نکسا اجرا نشده یا نصب نیست" },
-  "errUnauthorized": { "message": "یکپارچگی با مرورگر در تنظیمات نکسا خاموش است" },
-  "errInvalidUrl": { "message": "نکسا نمی‌تواند این نوع پیوند را دانلود کند" },
-  "errUnsupportedVersion": { "message": "نسخه‌های این افزونه و برنامهٔ نکسا با هم سازگار نیستند. لطفاً هر دو را به‌روز کنید." },
+  "errAppUnavailable": { "message": "pixidl اجرا نشده یا نصب نیست" },
+  "errUnauthorized": { "message": "یکپارچگی با مرورگر در تنظیمات pixidl خاموش است" },
+  "errInvalidUrl": { "message": "pixidl نمی‌تواند این نوع پیوند را دانلود کند" },
+  "errUnsupportedVersion": { "message": "نسخه‌های این افزونه و برنامهٔ pixidl با هم سازگار نیستند. لطفاً هر دو را به‌روز کنید." },
   "errCannotAccessPage": { "message": "پیوندهای این صفحه قابل خواندن نیستند" },
   "errUnknown": { "message": "مشکلی پیش آمد" }
 }

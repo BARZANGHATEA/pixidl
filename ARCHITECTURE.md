@@ -1,11 +1,11 @@
 # Architecture
 
 ```
-┌──────────────────────────── Nexa Download Manager (one process) ────────────────────────────┐
+┌──────────────────────────── pixidl (one process) ────────────────────────────┐
 │                                                                                              │
-│  React UI (src/)  ──typed invoke()──►  Tauri shell (src-tauri/)  ──►  nexa-core              │
+│  React UI (src/)  ──typed invoke()──►  Tauri shell (src-tauri/)  ──►  pixidl-core              │
 │      ▲                                   commands.rs, tray, notifications,   ┌─────────────┐ │
-│      └────── "nexa://event" ManagerEvents ◄── clipboard, power, logging       │ Download    │ │
+│      └────── "pixidl://event" ManagerEvents ◄── clipboard, power, logging       │ Download    │ │
 │                                                                               │ Manager     │ │
 │                                                                               │  queue      │ │
 │                                                                               │  scheduler  │ │
@@ -13,19 +13,19 @@
 │                                                                               └──┬───┬───┬──┘ │
 │                                                                    HttpEngine ◄──┘   │   └──► VideoEngine (yt-dlp process)
 │                                                                    TorrentEngine ◄───┘        │
-│                                                     SQLite (nexa.db) ◄── persistence         │
+│                                                     SQLite (pixidl.db) ◄── persistence         │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
         ▲
         │ length-prefixed JSON + auth token
-nexa-native-host(.exe)  ◄──native messaging (stdio)──  browser extension
+pixidl-native-host(.exe)  ◄──native messaging (stdio)──  browser extension
 ```
 
 ## Crates and folders
 
 | Path | Responsibility |
 |---|---|
-| `crates/nexa-core` | Everything that does not need a window: types and state machine, SQLite + migrations, settings, URL detection, the three engines, the queue manager, security helpers, the browser protocol and the loopback bridge. Fully testable headless. |
-| `crates/nexa-native-host` | Small binary started by browsers. Validates messages, starts the app if needed, forwards over the bridge. Also `--register/--unregister/--status`. |
+| `crates/pixidl-core` | Everything that does not need a window: types and state machine, SQLite + migrations, settings, URL detection, the three engines, the queue manager, security helpers, the browser protocol and the loopback bridge. Fully testable headless. |
+| `crates/pixidl-native-host` | Small binary started by browsers. Validates messages, starts the app if needed, forwards over the bridge. Also `--register/--unregister/--status`. |
 | `src-tauri` | Desktop shell: IPC commands, event forwarding, tray, notifications, single instance + file association, autostart, clipboard monitor, after-queue power action, logging. |
 | `src/` | React UI. `services/api.ts` is the only place that calls `invoke`; `services/events.ts` subscribes to backend events; state lives in zustand stores. |
 | `browser-extension/` | Reference MV3 extension for Chromium and Firefox. |
@@ -131,7 +131,7 @@ alone decides what runs.
 Runs yt-dlp as a child process with an argument array:
 
 - `--ignore-config`, `--no-playlist`, `-f <selector>`
-- `-P <dir>` for the destination and `-P temp:<dir>/.nexa-partial/<id>` for partial files
+- `-P <dir>` for the destination and `-P temp:<dir>/.pixidl-partial/<id>` for partial files
 - a machine-readable `--progress-template`
 - `--print after_move:filepath` to report the final file
 - the URL is always placed after `--`
@@ -165,7 +165,7 @@ The engine accepts only an output file that lands inside the destination folder.
 
 ## Persistence
 
-SQLite in WAL mode, with migrations in `crates/nexa-core/migrations/` (applied by
+SQLite in WAL mode, with migrations in `crates/pixidl-core/migrations/` (applied by
 `rusqlite_migration`; `PRAGMA user_version` tracks the schema version).
 
 | Table | Contents |

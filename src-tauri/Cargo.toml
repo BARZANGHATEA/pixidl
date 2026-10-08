@@ -1,19 +1,19 @@
 [package]
-name = "nexa-download-manager"
-description = "Nexa Download Manager"
+name = "pixidl"
+description = "pixidl"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "nexa_app"
+name = "pixidl_app"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-nexa-core = { path = "../crates/nexa-core" }
+pixidl-core = { path = "../crates/pixidl-core" }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"

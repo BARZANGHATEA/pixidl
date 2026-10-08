@@ -32,7 +32,7 @@ export function Sidebar() {
   return (
     <nav className="sidebar" aria-label={t("app.fullName")}>
       <div className="brand">
-        <img src="/nexa.svg" alt="" />
+        <img src="/pixidl.svg" alt="" />
         <div>
           <div className="brand-name">{t("app.name")}</div>
           <div className="brand-sub">{t("app.subtitle")}</div>

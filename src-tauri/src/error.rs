@@ -1,8 +1,8 @@
 //! Errors returned to the frontend: classified, human-readable, with an
 //! optional technical detail shown behind "Details".
 
-use nexa_core::types::ErrorKind;
-use nexa_core::DownloadError;
+use pixidl_core::types::ErrorKind;
+use pixidl_core::DownloadError;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]

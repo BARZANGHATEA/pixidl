@@ -1,4 +1,4 @@
-# Nexa Download Manager
+# pixidl
 
 **Simple. Fast. Powerful.** A minimal desktop download manager for Windows built with
 Tauri 2, Rust and React.
@@ -18,7 +18,7 @@ Tauri 2, Rust and React.
 - System tray, notifications, optional clipboard detection, history, search,
   filters, categories, light/dark themes, English and Persian (RTL)
 
-![Nexa Download Manager](docs/screenshots/17-dark.png)
+![pixidl](docs/screenshots/17-dark.png)
 
 No analytics, no accounts, no cloud: nothing leaves your machine except the
 downloads you start.
@@ -59,7 +59,7 @@ npm run build            # native host (release) + `tauri build` for the current
 npm run package:windows  # Windows: bundles checksum-verified yt-dlp, builds the NSIS installer
 ```
 
-The installer is written to `target/release/bundle/nsis/Nexa Download Manager_<version>_x64-setup.exe`.
+The installer is written to `target/release/bundle/nsis/pixidl_<version>_x64-setup.exe`.
 It installs per user, creates Start menu shortcuts, registers the native messaging
 host for all supported browsers, associates `.torrent` files and removes the
 browser integration on uninstall (your downloads and settings are kept).
@@ -76,10 +76,10 @@ browser integration on uninstall (your downloads and settings are kept).
 ## Repository layout
 
 ```
-crates/nexa-core/        Rust core: engines, queue manager, SQLite, settings, protocol, bridge
+crates/pixidl-core/        Rust core: engines, queue manager, SQLite, settings, protocol, bridge
   migrations/            SQL migrations
   tests/                 integration tests (HTTP, torrent, video)
-crates/nexa-native-host/ native messaging host binary (+ end-to-end tests)
+crates/pixidl-native-host/ native messaging host binary (+ end-to-end tests)
 src-tauri/               Tauri shell: IPC commands, tray, notifications, logging, config
 src/                     React + TypeScript UI (components, pages, stores, i18n, services)
 browser-extension/       reference MV3 extension (Chromium + Firefox)

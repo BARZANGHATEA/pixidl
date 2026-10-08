@@ -32,7 +32,7 @@ export function FirstRun({ onDone }: { onDone: () => void }) {
     <div className="firstrun">
       <div className="card" role="dialog" aria-labelledby="fr-title">
         <div className="row" style={{ gap: 14 }}>
-          <img src="/nexa.svg" alt="" width={48} height={48} />
+          <img src="/pixidl.svg" alt="" width={48} height={48} />
           <div style={{ flex: 1 }}>
             <h1 id="fr-title" style={{ margin: 0, fontSize: 20 }}>{t("firstRun.welcome")}</h1>
             <div className="muted">{t("firstRun.intro")}</div>

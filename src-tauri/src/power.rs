@@ -5,7 +5,7 @@
 use std::process::Command;
 use std::time::Duration;
 
-use nexa_core::settings::AfterQueueAction;
+use pixidl_core::settings::AfterQueueAction;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::AppState;
@@ -21,7 +21,7 @@ pub fn schedule(app: &AppHandle, action: AfterQueueAction) {
     if slot.is_some() {
         return;
     }
-    let _ = app.emit("nexa://power-countdown", serde_json::json!({ "action": action, "seconds": COUNTDOWN_SECS }));
+    let _ = app.emit("pixidl://power-countdown", serde_json::json!({ "action": action, "seconds": COUNTDOWN_SECS }));
     let handle = app.clone();
     *slot = Some(tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_secs(COUNTDOWN_SECS)).await;
@@ -39,7 +39,7 @@ pub fn cancel(app: &AppHandle) -> bool {
     match task {
         Some(t) => {
             t.abort();
-            let _ = app.emit("nexa://power-cancelled", ());
+            let _ = app.emit("pixidl://power-cancelled", ());
             true
         }
         None => false,

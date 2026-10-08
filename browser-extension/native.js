@@ -1,4 +1,4 @@
-// Native Messaging client for the Nexa desktop app.
+// Native Messaging client for the pixidl desktop app.
 // Every call is a one-shot runtime.sendNativeMessage: the browser launches the
 // native host, which forwards the request to the running app and replies.
 

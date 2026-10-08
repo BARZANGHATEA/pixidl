@@ -33,7 +33,7 @@ pub fn show_main(app: &AppHandle) {
 }
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
-    let title = MenuItem::with_id(app, "title", "Nexa Download Manager", false, None::<&str>)?;
+    let title = MenuItem::with_id(app, "title", "pixidl", false, None::<&str>)?;
     let active = MenuItem::with_id(app, "active", "Active: 0", false, None::<&str>)?;
     let speed = MenuItem::with_id(app, "speed", "Speed: 0 B/s", false, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -46,7 +46,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let menu: Menu<Wry> = Menu::with_items(app, &[&title, &sep()?, &active, &speed, &sep()?, &show, &pause_all, &resume_all, &open_dir, &settings, &sep()?, &exit])?;
 
     let mut builder = TrayIconBuilder::with_id("main")
-        .tooltip("Nexa Download Manager")
+        .tooltip("pixidl")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {
@@ -66,7 +66,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
                 }
                 "settings" => {
                     show_main(app);
-                    let _ = app.emit("nexa://navigate", "settings");
+                    let _ = app.emit("pixidl://navigate", "settings");
                 }
                 "exit" => crate::quit(app.clone()),
                 _ => {}
@@ -91,7 +91,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             let _ = active.set_text(format!("Active: {}", stats.active));
             let _ = speed.set_text(format!("Speed: {}", format_speed(stats.download_bps)));
             if let Some(tray) = handle.tray_by_id("main") {
-                let _ = tray.set_tooltip(Some(format!("Nexa Download Manager — {} active, {}", stats.active, format_speed(stats.download_bps))));
+                let _ = tray.set_tooltip(Some(format!("pixidl — {} active, {}", stats.active, format_speed(stats.download_bps))));
             }
         }
     });

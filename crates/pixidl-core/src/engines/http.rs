@@ -35,7 +35,7 @@ const WRITE_BUFFER: usize = 512 * 1024;
 const SEGMENT_ATTEMPTS: u32 = 4;
 
 pub const USER_AGENT: &str = concat!(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) NexaDownloadManager/",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) pixidl/",
     env!("CARGO_PKG_VERSION")
 );
 

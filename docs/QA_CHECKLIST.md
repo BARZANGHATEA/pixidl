@@ -8,7 +8,7 @@ build version and machine.
 - [ ] Installer runs without admin rights. A Start menu shortcut exists.
 - [ ] First launch shows the welcome screen with the default folder (`Downloads`) and the engine status (HTTP, torrent, yt-dlp bundled, FFmpeg as found).
 - [ ] *Get started* opens the main window. Relaunching does not show the welcome screen again.
-- [ ] `nexa-native-host.exe --status` reports every browser as registered.
+- [ ] `pixidl-native-host.exe --status` reports every browser as registered.
 
 ## HTTP downloads
 - [ ] Paste a large file URL into the title bar. The dialog shows the name, size and "Resumable". Download starts within seconds.
@@ -35,10 +35,10 @@ build version and machine.
 - [ ] Settings → Engines → *Check for updates* runs the yt-dlp updater and reports the result.
 
 ## Browser integration
-- [ ] Load `browser-extension` unpacked in Chrome and Edge. The popup shows "Connected to Nexa".
-- [ ] Right-click a link → *Download with Nexa* → the download appears in Nexa and a browser notification confirms it.
+- [ ] Load `browser-extension` unpacked in Chrome and Edge. The popup shows "Connected to pixidl".
+- [ ] Right-click a link → *Download with pixidl* → the download appears in pixidl and a browser notification confirms it.
 - [ ] Select text containing several links → *Download all links in selection* → all of them are added.
-- [ ] Close Nexa (Exit from the tray), then send a link → Nexa starts in the background and the download starts.
+- [ ] Close pixidl (Exit from the tray), then send a link → pixidl starts in the background and the download starts.
 - [ ] With *Accept downloads from the browser extension* off, the extension shows "turned off".
 - [ ] Firefox: load as a temporary add-on, then repeat the link test.
 

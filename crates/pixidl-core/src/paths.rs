@@ -2,15 +2,15 @@
 
 use std::path::PathBuf;
 
-pub const APP_IDENTIFIER: &str = "com.nexa.downloadmanager";
-pub const NATIVE_HOST_NAME: &str = "com.nexa.downloadmanager";
+pub const APP_IDENTIFIER: &str = "com.pixidl.app";
+pub const NATIVE_HOST_NAME: &str = "com.pixidl.app";
 
-/// `%APPDATA%\com.nexa.downloadmanager` on Windows,
-/// `~/.local/share/com.nexa.downloadmanager` on Linux,
-/// `~/Library/Application Support/com.nexa.downloadmanager` on macOS.
-/// `NEXA_DATA_DIR` overrides it (tests, portable installs).
+/// `%APPDATA%\com.pixidl.app` on Windows,
+/// `~/.local/share/com.pixidl.app` on Linux,
+/// `~/Library/Application Support/com.pixidl.app` on macOS.
+/// `PIXIDL_DATA_DIR` overrides it (tests, portable installs).
 pub fn data_dir() -> PathBuf {
-    if let Some(d) = std::env::var_os("NEXA_DATA_DIR").filter(|d| !d.is_empty()) {
+    if let Some(d) = std::env::var_os("PIXIDL_DATA_DIR").filter(|d| !d.is_empty()) {
         return PathBuf::from(d);
     }
     directories::BaseDirs::new()

@@ -6,8 +6,8 @@ mod common;
 use std::process::Command;
 
 use common::*;
-use nexa_core::manager::AddSource;
-use nexa_core::types::*;
+use pixidl_core::manager::AddSource;
+use pixidl_core::types::*;
 
 fn have(bin: &str, arg: &str) -> bool {
     Command::new(bin).arg(arg).output().map(|o| o.status.success()).unwrap_or(false)
@@ -73,7 +73,7 @@ async fn ytdlp_inspect_and_download() {
     assert!(out.exists());
     assert_eq!(std::fs::metadata(&out).unwrap().len(), std::fs::metadata(&clip).unwrap().len());
     assert_eq!(done.downloaded_bytes, std::fs::metadata(&out).unwrap().len());
-    assert!(!h.dir.path().join(".nexa-partial").exists(), "temp folder cleaned up");
+    assert!(!h.dir.path().join(".pixidl-partial").exists(), "temp folder cleaned up");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -105,8 +105,8 @@ async fn ytdlp_errors_are_reported() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn missing_extractor_is_reported_as_engine_unavailable() {
-    let tools = nexa_core::tools::ToolLocator::without_system_path(vec![]);
-    let engine = nexa_core::engines::video::VideoEngine::new(std::sync::Arc::new(tools));
+    let tools = pixidl_core::tools::ToolLocator::without_system_path(vec![]);
+    let engine = pixidl_core::engines::video::VideoEngine::new(std::sync::Arc::new(tools));
     let r = engine.inspect("https://example.com/v", "/definitely/not/here", "").await;
     assert_eq!(r.unwrap_err().kind, ErrorKind::EngineUnavailable);
 }

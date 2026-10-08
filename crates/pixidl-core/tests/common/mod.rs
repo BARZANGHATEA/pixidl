@@ -12,10 +12,10 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, Response, StatusCode};
 use axum::routing::get;
 use axum::Router;
-use nexa_core::db::Db;
-use nexa_core::manager::{DownloadManager, ManagerConfig};
-use nexa_core::settings::Settings;
-use nexa_core::types::{Download, DownloadStatus, ManagerEvent};
+use pixidl_core::db::Db;
+use pixidl_core::manager::{DownloadManager, ManagerConfig};
+use pixidl_core::settings::Settings;
+use pixidl_core::types::{Download, DownloadStatus, ManagerEvent};
 use parking_lot::Mutex;
 
 pub fn payload(len: usize) -> Vec<u8> {
@@ -152,7 +152,7 @@ pub fn test_settings(dir: &std::path::Path) -> Settings {
         retry_count: 3,
         connect_timeout_secs: 5,
         read_timeout_secs: 10,
-        proxy_mode: nexa_core::settings::ProxyMode::None,
+        proxy_mode: pixidl_core::settings::ProxyMode::None,
         ..Default::default()
     }
 }
@@ -160,7 +160,7 @@ pub fn test_settings(dir: &std::path::Path) -> Settings {
 pub async fn harness_with(f: impl FnOnce(&mut Settings)) -> Harness {
     let dir = tempfile::tempdir().unwrap();
     let data_dir = tempfile::tempdir().unwrap();
-    let db = Db::open(&data_dir.path().join("nexa.db")).unwrap();
+    let db = Db::open(&data_dir.path().join("pixidl.db")).unwrap();
     let mut s = test_settings(dir.path());
     f(&mut s);
     db.save_settings(&s).unwrap();
