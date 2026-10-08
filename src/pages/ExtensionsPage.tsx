@@ -67,8 +67,10 @@ function Guide({ browser, prepared, onClose }: { browser: ExtensionBrowser; prep
               {t("extensions.openPage", { browser: browser.label })}
             </button>
             <span className="hint">{t("extensions.orType")}</span>
-            <code className="mono">{prepared.extensionsPage}</code>
-            <CopyButton text={prepared.extensionsPage} />
+            <span className="row" style={{ gap: 2 }}>
+              <code className="mono">{prepared.extensionsPage}</code>
+              <CopyButton text={prepared.extensionsPage} />
+            </span>
           </div>
         </li>
         {firefox ? (
