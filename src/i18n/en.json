@@ -16,7 +16,8 @@
     "history": "History",
     "settings": "Settings",
     "about": "About",
-    "categories": "Categories"
+    "categories": "Categories",
+    "extensions": "Browser extension"
   },
   "titlebar": {
     "addPlaceholder": "Add download or paste URL…",
@@ -140,7 +141,23 @@
     "torrentFilter": "Torrent files",
     "detectedAs": "Detected as {{engine}}",
     "noFiles": "Select at least one file",
-    "best": "Best quality"
+    "best": "Best quality",
+    "titleMany": "Add {{count}} downloads",
+    "downloadMany": "Download {{count}}",
+    "addingProgress": "Adding {{done}} of {{total}}…",
+    "addedMany": "{{count}} downloads added",
+    "multiHint": "Tip: paste several links at once (one per line) to add them together.",
+    "linksSelected": "{{selected}} of {{total}} links selected",
+    "audioFormat": "Audio format",
+    "audioOriginal": "Original",
+    "subtitles": "Download subtitles (English + app language)",
+    "playlist": "Playlist",
+    "thisVideo": "This video only",
+    "wholePlaylist": "Whole playlist ({{count}} videos)",
+    "videosSelected": "{{selected}} of {{total}} videos selected",
+    "checksum": "SHA-256 checksum (optional)",
+    "checksumPlaceholder": "Paste the publisher's SHA-256 to verify the file",
+    "checksumInvalid": "A SHA-256 checksum is 64 hexadecimal characters."
   },
   "details": {
     "title": "Download details",
@@ -211,7 +228,9 @@
     "down": "Download speed",
     "up": "Upload speed",
     "downloads_one": "{{count}} download",
-    "downloads_other": "{{count}} downloads"
+    "downloads_other": "{{count}} downloads",
+    "limit": "Speed limit",
+    "noLimit": "No limit"
   },
   "settings": {
     "title": "Settings",
@@ -318,7 +337,11 @@
     "addCategory": "Add category",
     "builtin": "Built-in",
     "logs": "Open logs folder",
-    "saved": "Saved"
+    "saved": "Saved",
+    "jsRuntime": "JavaScript runtime (YouTube)",
+    "installDeno": "Install Deno",
+    "jsRuntimeOk": "yt-dlp uses it to read YouTube's player; nothing else runs with it.",
+    "jsRuntimeHint": "YouTube needs a JavaScript runtime for yt-dlp. Install Deno (official release, SHA-256 verified) or point to Node.js / Bun."
   },
   "days": {
     "0": "Mon",
@@ -366,6 +389,41 @@
     "invalid_url": "Invalid URL",
     "filesystem": "File system error",
     "cancelled": "Download cancelled",
-    "unknown": "Unexpected error"
+    "unknown": "Unexpected error",
+    "checksum_mismatch": "Checksum mismatch"
+  },
+  "extensions": {
+    "title": "Browser extension",
+    "subtitle": "Send links from any website to pixidl with one click. Choose your browser to get the extension.",
+    "get": "Get extension",
+    "reinstall": "Get again",
+    "preparing": "Preparing…",
+    "connected": "Connected · v{{version}}",
+    "lastSeen": "Installed · last seen {{when}}",
+    "browserFound": "Browser found on this computer",
+    "browserMissing": "Browser not found",
+    "featSelection": "Button next to selected links",
+    "featSelectionBody": "Select links on a page and a small download button appears beside them.",
+    "featDetect": "Finds downloads automatically",
+    "featDetectBody": "The extension spots download links on every page and counts them on its icon.",
+    "featPicker": "Choose from many links",
+    "featPickerBody": "See file names and sizes, tick the ones you want, and send them together.",
+    "featYoutube": "YouTube videos",
+    "featYoutubeBody": "A Download button on YouTube opens pixidl to pick the quality or audio only.",
+    "privacy": "The extension only talks to pixidl on this computer. It collects nothing and sends nothing to the internet.",
+    "guideTitle": "Install for {{browser}}",
+    "saved": "The extension was saved to your downloads folder:",
+    "showFile": "Show file",
+    "showFolder": "Show folder",
+    "copy": "Copy",
+    "stepOpen": "Open the extensions page ({{page}})",
+    "openPage": "Open in {{browser}}",
+    "orType": "or type in the address bar:",
+    "stepDevMode": "Turn on “Developer mode” (switch at the top of the page).",
+    "stepLoadUnpacked": "Click “Load unpacked” and choose this folder:",
+    "stepFirefoxLoad": "Click “Load Temporary Add-on…” and choose manifest.json in this folder:",
+    "firefoxNote": "Regular Firefox only keeps temporary add-ons until it restarts; a permanent install needs the add-on signed by Mozilla (addons.mozilla.org). Firefox Developer Edition and Nightly can install the .xpi file directly after setting xpinstall.signatures.required to false in about:config.",
+    "stepPin": "Done! Pin the pixidl icon in the toolbar. The status here turns green as soon as the extension connects.",
+    "done": "Done"
   }
 }

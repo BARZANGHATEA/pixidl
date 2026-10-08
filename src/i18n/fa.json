@@ -16,7 +16,8 @@
     "history": "تاریخچه",
     "settings": "تنظیمات",
     "about": "درباره",
-    "categories": "دسته‌ها"
+    "categories": "دسته‌ها",
+    "extensions": "افزونه مرورگر"
   },
   "titlebar": {
     "addPlaceholder": "افزودن دانلود یا چسباندن نشانی…",
@@ -140,7 +141,23 @@
     "torrentFilter": "فایل‌های تورنت",
     "detectedAs": "تشخیص: {{engine}}",
     "noFiles": "دست‌کم یک فایل را انتخاب کنید",
-    "best": "بهترین کیفیت"
+    "best": "بهترین کیفیت",
+    "titleMany": "افزودن {{count}} دانلود",
+    "downloadMany": "دانلود {{count}} مورد",
+    "addingProgress": "در حال افزودن {{done}} از {{total}}…",
+    "addedMany": "{{count}} دانلود اضافه شد",
+    "multiHint": "نکته: چند پیوند را با هم بچسبانید (هر کدام در یک خط) تا همه با هم اضافه شوند.",
+    "linksSelected": "{{selected}} از {{total}} پیوند انتخاب شده",
+    "audioFormat": "قالب صدا",
+    "audioOriginal": "اصلی",
+    "subtitles": "دریافت زیرنویس (انگلیسی و زبان برنامه)",
+    "playlist": "لیست پخش",
+    "thisVideo": "فقط همین ویدیو",
+    "wholePlaylist": "کل لیست پخش ({{count}} ویدیو)",
+    "videosSelected": "{{selected}} از {{total}} ویدیو انتخاب شده",
+    "checksum": "چک‌سام SHA-256 (اختیاری)",
+    "checksumPlaceholder": "SHA-256 منتشرشده را برای بررسی فایل بچسبانید",
+    "checksumInvalid": "چک‌سام SHA-256 باید ۶۴ نویسه هگزادسیمال باشد."
   },
   "details": {
     "title": "جزئیات دانلود",
@@ -211,7 +228,9 @@
     "down": "سرعت دانلود",
     "up": "سرعت بارگذاری",
     "downloads_one": "{{count}} دانلود",
-    "downloads_other": "{{count}} دانلود"
+    "downloads_other": "{{count}} دانلود",
+    "limit": "محدودیت سرعت",
+    "noLimit": "بدون محدودیت"
   },
   "settings": {
     "title": "تنظیمات",
@@ -318,7 +337,11 @@
     "addCategory": "افزودن دسته",
     "builtin": "پیش‌فرض",
     "logs": "باز کردن پوشه گزارش‌ها",
-    "saved": "ذخیره شد"
+    "saved": "ذخیره شد",
+    "jsRuntime": "محیط اجرای جاوااسکریپت (یوتیوب)",
+    "installDeno": "نصب Deno",
+    "jsRuntimeOk": "yt-dlp از آن برای خواندن پخش‌کننده یوتیوب استفاده می‌کند؛ کار دیگری با آن انجام نمی‌شود.",
+    "jsRuntimeHint": "یوتیوب برای yt-dlp به یک محیط اجرای جاوااسکریپت نیاز دارد. Deno را نصب کنید (نسخه رسمی، با بررسی SHA-256) یا مسیر Node.js / Bun را بدهید."
   },
   "days": {
     "0": "دوشنبه",
@@ -366,6 +389,41 @@
     "invalid_url": "نشانی نامعتبر",
     "filesystem": "خطای سیستم فایل",
     "cancelled": "دانلود لغو شد",
-    "unknown": "خطای غیرمنتظره"
+    "unknown": "خطای غیرمنتظره",
+    "checksum_mismatch": "چک‌سام مطابقت ندارد"
+  },
+  "extensions": {
+    "title": "افزونه مرورگر",
+    "subtitle": "با یک کلیک پیوندها را از هر سایتی به pixidl بفرستید. مرورگر خود را انتخاب کنید تا افزونه را دریافت کنید.",
+    "get": "دریافت افزونه",
+    "reinstall": "دریافت دوباره",
+    "preparing": "در حال آماده‌سازی…",
+    "connected": "متصل · نسخه {{version}}",
+    "lastSeen": "نصب شده · آخرین اتصال {{when}}",
+    "browserFound": "مرورگر روی این رایانه پیدا شد",
+    "browserMissing": "مرورگر پیدا نشد",
+    "featSelection": "دکمه کنار پیوندهای انتخاب‌شده",
+    "featSelectionBody": "پیوندهای صفحه را انتخاب کنید تا یک دکمه دانلود کوچک کنارشان ظاهر شود.",
+    "featDetect": "شناسایی خودکار دانلودها",
+    "featDetectBody": "افزونه پیوندهای دانلود هر صفحه را پیدا می‌کند و تعدادشان را روی آیکونش نشان می‌دهد.",
+    "featPicker": "انتخاب از میان چند پیوند",
+    "featPickerBody": "نام و حجم فایل‌ها را ببینید، موارد دلخواه را تیک بزنید و همه را با هم بفرستید.",
+    "featYoutube": "ویدیوهای یوتیوب",
+    "featYoutubeBody": "دکمه دانلود روی یوتیوب، pixidl را برای انتخاب کیفیت یا فقط صدا باز می‌کند.",
+    "privacy": "افزونه فقط با pixidl روی همین رایانه ارتباط دارد. هیچ داده‌ای جمع‌آوری نمی‌کند و چیزی به اینترنت نمی‌فرستد.",
+    "guideTitle": "نصب برای {{browser}}",
+    "saved": "افزونه در پوشه دانلودهای شما ذخیره شد:",
+    "showFile": "نمایش فایل",
+    "showFolder": "نمایش پوشه",
+    "copy": "کپی",
+    "stepOpen": "صفحه افزونه‌ها را باز کنید ({{page}})",
+    "openPage": "باز کردن در {{browser}}",
+    "orType": "یا در نوار نشانی بنویسید:",
+    "stepDevMode": "«Developer mode» را روشن کنید (کلید بالای صفحه).",
+    "stepLoadUnpacked": "روی «Load unpacked» بزنید و این پوشه را انتخاب کنید:",
+    "stepFirefoxLoad": "روی «Load Temporary Add-on…» بزنید و فایل manifest.json را در این پوشه انتخاب کنید:",
+    "firefoxNote": "Firefox معمولی افزونه‌های موقت را فقط تا بستن مرورگر نگه می‌دارد؛ نصب دائمی نیاز به امضای Mozilla (addons.mozilla.org) دارد. نسخه‌های Developer Edition و Nightly پس از غیرفعال کردن xpinstall.signatures.required در about:config می‌توانند فایل ‎.xpi را مستقیم نصب کنند.",
+    "stepPin": "تمام! آیکون pixidl را در نوار ابزار سنجاق کنید. به محض اتصال افزونه، وضعیت اینجا سبز می‌شود.",
+    "done": "انجام شد"
   }
 }

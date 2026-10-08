@@ -143,6 +143,7 @@ pub enum ErrorKind {
     DiskFull,
     ResumeNotSupported,
     ExtractorFailed,
+    ChecksumMismatch,
     EngineUnavailable,
     TorrentMetadataUnavailable,
     InvalidUrl,
@@ -162,6 +163,7 @@ impl ErrorKind {
             Self::DiskFull => "disk_full",
             Self::ResumeNotSupported => "resume_not_supported",
             Self::ExtractorFailed => "extractor_failed",
+            Self::ChecksumMismatch => "checksum_mismatch",
             Self::EngineUnavailable => "engine_unavailable",
             Self::TorrentMetadataUnavailable => "torrent_metadata_unavailable",
             Self::InvalidUrl => "invalid_url",
@@ -181,6 +183,7 @@ impl ErrorKind {
             "disk_full" => Self::DiskFull,
             "resume_not_supported" => Self::ResumeNotSupported,
             "extractor_failed" => Self::ExtractorFailed,
+            "checksum_mismatch" => Self::ChecksumMismatch,
             "engine_unavailable" => Self::EngineUnavailable,
             "torrent_metadata_unavailable" => Self::TorrentMetadataUnavailable,
             "invalid_url" => Self::InvalidUrl,
@@ -242,6 +245,17 @@ pub struct EngineOptions {
     #[serde(default)]
     #[ts(optional)]
     pub connections: Option<u32>,
+    /// Audio-only: target format (best, mp3, m4a, opus, flac, wav).
+    #[serde(default)]
+    #[ts(optional)]
+    pub audio_format: Option<String>,
+    /// Expected SHA-256 of the finished file (64 hex chars); verified after download.
+    #[serde(default)]
+    #[ts(optional)]
+    pub sha256: Option<String>,
+    /// Video: download and embed subtitles.
+    #[serde(default)]
+    pub subtitles: bool,
     /// The user chose the filename; server-provided names must not replace it.
     #[serde(default)]
     pub explicit_filename: bool,
@@ -396,7 +410,37 @@ pub enum ManagerEvent {
     DownloadFailed { download: Download },
     DownloadRemoved { id: String },
     QueueFinished,
+    /// A browser extension asked to open the Add dialog for this URL.
+    ShowAddDialog { url: String },
     EngineError { engine: EngineKind, message: String },
+}
+
+/// A browser extension that has talked to the app.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ExtensionClient {
+    /// chrome | edge | brave | firefox | chromium | opera | vivaldi | other
+    pub browser: String,
+    pub version: String,
+    /// RFC 3339 time of the last message.
+    pub last_seen: String,
+}
+
+/// File name / size / type of a link, looked up before sending it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LinkProbe {
+    pub url: String,
+    pub engine: EngineKind,
+    pub filename: Option<String>,
+    #[ts(type = "number | null")]
+    pub total_bytes: Option<u64>,
+    pub content_type: Option<String>,
+    pub resumable: Option<bool>,
+    /// Classified failure (e.g. not_found); the link can still be sent.
+    pub error: Option<String>,
 }
 
 /// Global transfer statistics for the status bar / tray.

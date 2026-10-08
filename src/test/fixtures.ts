@@ -28,7 +28,7 @@ export function makeDownload(over: Partial<Download> = {}): Download {
     errorMessage: null,
     errorDetail: null,
     retryCount: 0,
-    engineOptions: { audioOnly: false, explicitFilename: false },
+    engineOptions: { audioOnly: false, subtitles: false, explicitFilename: false },
     peers: null,
     seeds: null,
     infoHash: null,

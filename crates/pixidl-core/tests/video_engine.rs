@@ -110,3 +110,82 @@ async fn missing_extractor_is_reported_as_engine_unavailable() {
     let r = engine.inspect("https://example.com/v", "/definitely/not/here", "").await;
     assert_eq!(r.unwrap_err().kind, ErrorKind::EngineUnavailable);
 }
+
+fn make_clip(path: &std::path::Path, seconds: u32, freq: u32) {
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", &format!("testsrc=duration={seconds}:size=320x240:rate=25"), "-f", "lavfi", "-i", &format!("sine=frequency={freq}:duration={seconds}"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-y"])
+        .arg(path)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn playlist_entries_and_mp3_extraction() {
+    if !have("yt-dlp", "--version") || !have("ffmpeg", "-version") {
+        eprintln!("SKIPPED: yt-dlp and ffmpeg are required for this test");
+        return;
+    }
+    let media = tempfile::tempdir().unwrap();
+    make_clip(&media.path().join("one.mp4"), 2, 440);
+    make_clip(&media.path().join("two.mp4"), 2, 660);
+    std::fs::write(
+        media.path().join("list.html"),
+        "<html><head><title>My clips</title></head><body><video src=\"one.mp4\"></video><video src=\"two.mp4\"></video></body></html>",
+    )
+    .unwrap();
+    let addr = serve_dir(media.path().to_path_buf()).await;
+    let h = harness_with(|_| {}).await;
+
+    // A page with several videos is a playlist: every entry is listed.
+    let insp = h.mgr.inspect_url(&format!("http://{addr}/media/list.html"), Some(EngineKind::Video)).await.unwrap();
+    assert!(insp.warning.is_none(), "{:?}", insp.warning);
+    let info = insp.video.unwrap();
+    let pl = info.playlist.expect("playlist detected");
+    assert_eq!(pl.entries.len(), 2);
+    assert!(pl.entries[0].url.ends_with("one.mp4"), "{:?}", pl.entries);
+    assert!(info.presets.iter().any(|p| p.label == "720p"), "generic presets offered for playlists");
+    assert!(info.presets.iter().any(|p| p.audio_only));
+
+    // Audio-only with a chosen format produces a real MP3.
+    let d = h
+        .mgr
+        .add(
+            AddDownloadRequest {
+                url: pl.entries[1].url.clone(),
+                engine: Some(EngineKind::Video),
+                engine_options: EngineOptions { format_id: Some("ba/b".into()), audio_only: true, audio_format: Some("mp3".into()), ..Default::default() },
+                ..Default::default()
+            },
+            AddSource::User,
+        )
+        .await
+        .unwrap();
+    let done = h.wait_status(&d.id, DownloadStatus::Completed, 90).await;
+    assert!(done.filename.ends_with(".mp3"), "{}", done.filename);
+    let probe = Command::new("ffprobe").args(["-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0"]).arg(h.dir.path().join(&done.filename)).output().unwrap();
+    assert!(String::from_utf8_lossy(&probe.stdout).contains("mp3"), "{}", String::from_utf8_lossy(&probe.stdout));
+}
+
+#[test]
+fn flat_playlist_parsing() {
+    let j = serde_json::json!({
+        "_type": "playlist", "id": "PL1", "title": "Mix", "uploader": "Chan",
+        "entries": [
+            {"_type": "url", "id": "a", "title": "First", "url": "https://www.youtube.com/watch?v=a", "duration": 61.0},
+            null,
+            {"_type": "url", "id": "b", "title": "Second", "url": "https://www.youtube.com/watch?v=b"},
+            {"_type": "url", "id": "c", "title": "No URL"}
+        ]
+    });
+    let pl = pixidl_core::engines::video::parse_playlist(&j).unwrap();
+    assert_eq!(pl.title, "Mix");
+    assert_eq!(pl.entries.len(), 2);
+    assert_eq!(pl.entries[1].url, "https://www.youtube.com/watch?v=b");
+    assert_eq!(pl.entries[0].duration_seconds, Some(61.0));
+    let info = pixidl_core::engines::video::parse_info(&j, true).unwrap();
+    assert_eq!(info.playlist.unwrap().entries.len(), 2);
+    assert_eq!(info.presets[0].selector, "bv*+ba/b");
+    assert!(pixidl_core::engines::video::parse_playlist(&serde_json::json!({"id": "x"})).is_none());
+}

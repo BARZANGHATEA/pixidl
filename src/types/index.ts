@@ -30,6 +30,10 @@ export type { TorrentInfo } from "./generated/TorrentInfo";
 export type { UrlInspection } from "./generated/UrlInspection";
 export type { VideoFormat } from "./generated/VideoFormat";
 export type { VideoInfo } from "./generated/VideoInfo";
+export type { ExtensionClient } from "./generated/ExtensionClient";
+export type { LinkProbe } from "./generated/LinkProbe";
+export type { PlaylistInfo } from "./generated/PlaylistInfo";
+export type { PlaylistEntry } from "./generated/PlaylistEntry";
 
 import type { ErrorKind } from "./generated/ErrorKind";
 import type { ToolStatus } from "./generated/ToolStatus";
@@ -45,6 +49,7 @@ export interface CommandError {
 }
 
 export interface EngineStatus {
+  jsRuntime: ToolStatus;
   ytdlp: ToolStatus;
   ffmpeg: ToolStatus;
   torrent: TorrentEngineStatus;
@@ -65,6 +70,22 @@ export interface BrowserIntegrationStatus {
   browsers: BrowserRegistration[];
   referenceExtensionId: string;
   protocolVersion: number;
+}
+
+export interface ExtensionBrowser {
+  browser: "chrome" | "edge" | "brave" | "firefox" | "chromium" | "vivaldi";
+  label: string;
+  installed: boolean;
+  executable: string | null;
+  package: string;
+  extensionsPage: string;
+  client: import("./generated/ExtensionClient").ExtensionClient | null;
+}
+
+export interface PreparedExtension {
+  folder: string;
+  archive: string;
+  extensionsPage: string;
 }
 
 export interface AppInfo {

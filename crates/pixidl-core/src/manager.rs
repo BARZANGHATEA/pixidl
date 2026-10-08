@@ -425,6 +425,17 @@ impl DownloadManager {
         )
     }
 
+    /// JavaScript runtime used by yt-dlp for YouTube.
+    pub async fn js_runtime_status(&self) -> ToolStatus {
+        tools::js_runtime_status(&self.inner.tools, &self.settings().js_runtime_path).await
+    }
+
+    /// Installs Deno (official release, checksum-verified) into `dest_dir`.
+    pub async fn install_deno(&self, dest_dir: &Path) -> Result<PathBuf> {
+        let client = self.inner.client.read().clone();
+        tools::install_deno(&client, dest_dir).await
+    }
+
     /// Installs yt-dlp (official release, checksum-verified) into `dest_dir`.
     pub async fn install_ytdlp(&self, dest_dir: &Path) -> Result<PathBuf> {
         let client = self.inner.client.read().clone();
@@ -434,6 +445,78 @@ impl DownloadManager {
     pub async fn update_ytdlp(&self) -> Result<String> {
         let s = self.settings();
         self.inner.video.self_update(&s.ytdlp_path).await
+    }
+
+    /// Remembers which browser extension talked to the app (shown on the
+    /// Extensions page). Writes are throttled to once a minute per browser.
+    pub fn record_extension_client(&self, browser: &str, version: &str) {
+        let mut list = self.extension_clients();
+        let now_s = now();
+        let fresh = list.iter().find(|c| c.browser == browser).is_some_and(|c| {
+            c.version == version
+                && chrono::DateTime::parse_from_rfc3339(&c.last_seen).map(|t| chrono::Utc::now().signed_duration_since(t).num_seconds() < 60).unwrap_or(false)
+        });
+        if fresh {
+            return;
+        }
+        list.retain(|c| c.browser != browser);
+        list.push(ExtensionClient { browser: browser.to_string(), version: version.to_string(), last_seen: now_s });
+        list.sort_by(|a, b| a.browser.cmp(&b.browser));
+        if let Ok(json) = serde_json::to_string(&list) {
+            let _ = self.inner.db.set_kv("extension_clients", &json);
+        }
+    }
+
+    pub fn extension_clients(&self) -> Vec<ExtensionClient> {
+        self.inner.db.get_kv("extension_clients").ok().flatten().and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default()
+    }
+
+    /// Looks up name/size/type for up to 200 links (8 at a time, 12 s each),
+    /// using the app's own HTTP client and proxy settings.
+    pub async fn probe_links(&self, items: Vec<(String, Option<String>)>) -> Vec<LinkProbe> {
+        use futures::StreamExt;
+        let client = self.inner.client.read().clone();
+        let futs = items.into_iter().take(crate::protocol::MAX_BATCH).map(|(url, referrer)| {
+            let client = client.clone();
+            async move {
+                let (engine, parsed) = match detector::detect(&url) {
+                    Ok((u, e)) => (e, Some(u)),
+                    Err(e) => return LinkProbe { url, engine: EngineKind::Http, filename: None, total_bytes: None, content_type: None, resumable: None, error: Some(e.message) },
+                };
+                let parsed = parsed.expect("detected");
+                let mut out = LinkProbe { url: url.clone(), engine, filename: None, total_bytes: None, content_type: None, resumable: None, error: None };
+                match engine {
+                    EngineKind::Torrent if parsed.scheme() == "magnet" => out.filename = torrent::magnet_display_name(&url),
+                    EngineKind::Video => out.filename = None,
+                    _ => match tokio::time::timeout(Duration::from_secs(12), http::probe(&client, &url, referrer.as_deref())).await {
+                        Ok(Ok(p)) => {
+                            out.filename = p.filename;
+                            out.total_bytes = p.total_bytes;
+                            out.content_type = p.content_type.clone();
+                            out.resumable = Some(p.resumable);
+                            if p.content_type.as_deref() == Some("application/x-bittorrent") {
+                                out.engine = EngineKind::Torrent;
+                            }
+                        }
+                        Ok(Err(e)) => out.error = Some(e.message),
+                        Err(_) => out.error = Some("Timed out".into()),
+                    },
+                }
+                if out.filename.is_none() && engine != EngineKind::Video {
+                    out.filename = security::filename_from_url(&parsed);
+                }
+                out
+            }
+        });
+        futures::stream::iter(futs).buffered(8).collect().await
+    }
+
+    /// Asks the UI to open the Add dialog (used by the browser extension, e.g.
+    /// to pick a YouTube quality inside the app).
+    pub fn request_add_dialog(&self, url: &str) -> Result<()> {
+        let (u, _) = detector::detect(url)?;
+        self.inner.sink.emit(ManagerEvent::ShowAddDialog { url: u.to_string() });
+        Ok(())
     }
 
     /// Re-checks completed downloads whose files were moved or deleted.
@@ -666,6 +749,14 @@ impl Inner {
         let referrer = req.referrer.as_deref().and_then(|r| url::Url::parse(r).ok()).filter(|r| r.scheme() == "http" || r.scheme() == "https").map(|r| r.to_string());
         let mut options = req.engine_options.clone();
         options.explicit_filename = explicit.is_some();
+        if let Some(h) = options.sha256.as_mut() {
+            *h = h.trim().to_ascii_lowercase();
+            if h.is_empty() {
+                options.sha256 = None;
+            } else if h.len() != 64 || !h.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Err(DownloadError::new(ErrorKind::Unknown, "The SHA-256 checksum must be 64 hexadecimal characters"));
+            }
+        }
         if let Some(c) = options.connections {
             options.connections = Some(c.clamp(1, 16));
         }
@@ -758,7 +849,7 @@ impl Inner {
             }
             EngineKind::Video => {
                 out.alternatives = vec![EngineKind::Http];
-                match self.video.inspect(url.as_str(), &settings.ytdlp_path, &settings.ffmpeg_path).await {
+                match self.video.inspect_with(url.as_str(), &settings.ytdlp_path, &settings.ffmpeg_path, &settings.js_runtime_path).await {
                     Ok(info) => {
                         out.filename = Some(security::sanitize_filename(&info.title));
                         out.total_bytes = info.presets.first().and_then(|p| p.approx_size);
@@ -1048,7 +1139,20 @@ impl Inner {
 
         let outcome: Result<()> = async {
             match (result, intent) {
+                (Ok(EngineOutcome::Completed { filename }), _) if base.engine_options.sha256.is_some() && !self.verify_checksum(&base, &filename).await => {
+                    let expected = base.engine_options.sha256.clone().unwrap_or_default();
+                    self.transition(id, DownloadStatus::Failed, |d| {
+                        d.filename = filename.clone();
+                        d.error_kind = Some(ErrorKind::ChecksumMismatch);
+                        d.error_message = Some("The file does not match the expected checksum".into());
+                        d.error_detail = Some(format!("Expected SHA-256 {expected}. The file was kept so you can inspect it."));
+                    })?;
+                    self.db.add_event(id, "checksum_mismatch", None)?;
+                }
                 (Ok(EngineOutcome::Completed { filename }), _) => {
+                    if base.engine_options.sha256.is_some() {
+                        self.db.add_event(id, "checksum_verified", Some("SHA-256 matches"))?;
+                    }
                     let size = std::fs::metadata(Path::new(&base.save_dir).join(&filename)).ok().filter(|m| m.is_file()).map(|m| m.len());
                     self.transition(id, DownloadStatus::Completed, |d| {
                         d.filename = filename.clone();
@@ -1131,6 +1235,32 @@ impl Inner {
             tracing::error!(id, error = %e, detail = ?e.detail, "failed to finalise job");
         }
         self.wake.notify_one();
+    }
+
+    /// SHA-256 of the finished file equals the expected value (hashed off the
+    /// async runtime; directories — multi-file torrents — are not hashed).
+    async fn verify_checksum(&self, d: &Download, filename: &str) -> bool {
+        let Some(expected) = d.engine_options.sha256.clone() else { return true };
+        let path = Path::new(&d.save_dir).join(filename);
+        tokio::task::spawn_blocking(move || {
+            use sha2::{Digest, Sha256};
+            use std::io::Read;
+            let mut f = std::fs::File::open(&path).ok()?;
+            let mut h = Sha256::new();
+            let mut buf = vec![0u8; 1 << 20];
+            loop {
+                let n = f.read(&mut buf).ok()?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Some(hex::encode(h.finalize()) == expected)
+        })
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
     }
 
     // ------------------------------------------------------------------ progress

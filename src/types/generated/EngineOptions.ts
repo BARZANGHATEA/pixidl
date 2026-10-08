@@ -21,6 +21,18 @@ torrentFiles?: Array<number>,
  */
 connections?: number, 
 /**
+ * Audio-only: target format (best, mp3, m4a, opus, flac, wav).
+ */
+audioFormat?: string, 
+/**
+ * Expected SHA-256 of the finished file (64 hex chars); verified after download.
+ */
+sha256?: string, 
+/**
+ * Video: download and embed subtitles.
+ */
+subtitles: boolean, 
+/**
  * The user chose the filename; server-provided names must not replace it.
  */
 explicitFilename: boolean, };

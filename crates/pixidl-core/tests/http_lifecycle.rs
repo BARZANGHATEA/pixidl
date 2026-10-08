@@ -498,3 +498,29 @@ async fn pausing_never_reports_queue_finished() {
     tokio::time::sleep(Duration::from_millis(1500)).await;
     assert_eq!(h.events.lock().iter().filter(|e| matches!(e, ManagerEvent::QueueFinished)).count(), 1);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn checksum_is_verified() {
+    let srv = start_server(200 * 1024, 0).await;
+    let h = harness_with(|_| {}).await;
+    let good = hex::encode(Sha256::digest(&*srv.state.data));
+    let ok = h
+        .mgr
+        .add(AddDownloadRequest { url: srv.url("/file/good.bin"), engine_options: EngineOptions { sha256: Some(good.to_uppercase()), ..Default::default() }, ..Default::default() }, AddSource::User)
+        .await
+        .unwrap();
+    h.wait_status(&ok.id, DownloadStatus::Completed, 20).await;
+    assert!(h.mgr.events(&ok.id).unwrap().iter().any(|e| e.kind == "checksum_verified"));
+
+    let bad = h
+        .mgr
+        .add(AddDownloadRequest { url: srv.url("/file/bad.bin"), engine_options: EngineOptions { sha256: Some("0".repeat(64)), ..Default::default() }, ..Default::default() }, AddSource::User)
+        .await
+        .unwrap();
+    let f = h.wait_status(&bad.id, DownloadStatus::Failed, 20).await;
+    assert_eq!(f.error_kind, Some(ErrorKind::ChecksumMismatch));
+    assert!(h.dir.path().join("bad.bin").exists(), "file kept for inspection");
+
+    let invalid = h.mgr.add(AddDownloadRequest { url: srv.url("/file/x.bin"), engine_options: EngineOptions { sha256: Some("abc".into()), ..Default::default() }, ..Default::default() }, AddSource::User).await;
+    assert!(invalid.is_err());
+}

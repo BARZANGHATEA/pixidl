@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Download, History, Info, LayoutList, Magnet, PlayCircle, Settings, XCircle } from "lucide-react";
+import { CheckCircle2, Download, History, Info, LayoutList, Magnet, PlayCircle, Puzzle, Settings, XCircle } from "lucide-react";
 import { useUi } from "../stores/ui";
 import { useDownloads } from "../stores/downloads";
 import { countDownloads, type StatusFilter } from "../lib/filters";
@@ -73,6 +73,10 @@ export function Sidebar() {
         </button>
       </div>
       <div className="sidebar-bottom">
+        <button className="nav-item" aria-current={view === "extensions"} onClick={() => setView("extensions")}>
+          <Puzzle aria-hidden="true" />
+          <span>{t("nav.extensions")}</span>
+        </button>
         <button className="nav-item" aria-current={view === "settings"} onClick={() => setView("settings")}>
           <Settings aria-hidden="true" />
           <span>{t("nav.settings")}</span>

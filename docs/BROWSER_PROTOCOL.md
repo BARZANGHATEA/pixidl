@@ -46,6 +46,9 @@ directions.
 - `version` — must be `1`. Any other value returns `unsupported_version`.
 - `id` — optional string (≤128 chars) or number; echoed in the response.
 - `payload` — object; may be omitted for `ping` and `get_status`.
+- `client` — optional `{ "browser": "chrome|edge|brave|firefox|chromium|opera|vivaldi", "version": "2.0.0" }`.
+  The app shows connected extensions on its *Extensions* page. Unknown browsers are
+  recorded as `other`.
 
 ## Response
 
@@ -63,6 +66,19 @@ directions.
 | `add_multiple_downloads` | `items`: 1–200 × `{url, filename?, referrer?}` | `added`, `results[]` (`url`, `success`, `download_id` or `error`) |
 | `get_status` | `download_id`? | with id: `download`; without: `active`, `queued`, `download_bytes_per_second`, `downloads[]` (≤50) |
 | `pause` / `resume` / `cancel` | `download_id` | `download_id` |
+| `probe_links` | `items`: 1–200 × `{url, referrer?}` | `results[]`: `url`, `engine`, `filename`, `totalBytes`, `contentType`, `resumable`, `error` |
+| `open_in_app` | `url`, `referrer`? | — (the app comes to the front with its Add dialog pre-filled, e.g. to choose a video quality) |
+
+`add_download` / `add_multiple_downloads` items also accept an optional `engine`
+hint: `http`, `video` (yt-dlp) or `torrent`.
+
+`ping` additionally returns `integration_enabled`, `accent_color` and `language`
+so the extension can match the app's look and language.
+
+`probe_links` asks the app (with its own proxy settings) for each link's real file
+name, size and type, 8 at a time with a 12-second timeout per link. Magnet links
+are named from their `dn`; video pages are not probed. A failed probe still
+returns the link, with `error` set, so it can be sent anyway.
 
 A download view contains `download_id`, `filename`, `status`, `downloaded_bytes`,
 `total_bytes`, `speed_bytes_per_second`, `eta_seconds`, `error`. Local paths are never

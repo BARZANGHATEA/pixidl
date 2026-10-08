@@ -4,4 +4,4 @@
  * Machine-readable error classification. The UI translates these into
  * human-readable messages; the technical detail is kept separately.
  */
-export type ErrorKind = "network_unavailable" | "timeout" | "server_rejected" | "not_found" | "permission_denied" | "disk_full" | "resume_not_supported" | "extractor_failed" | "engine_unavailable" | "torrent_metadata_unavailable" | "invalid_url" | "filesystem" | "cancelled" | "unknown";
+export type ErrorKind = "network_unavailable" | "timeout" | "server_rejected" | "not_found" | "permission_denied" | "disk_full" | "resume_not_supported" | "extractor_failed" | "checksum_mismatch" | "engine_unavailable" | "torrent_metadata_unavailable" | "invalid_url" | "filesystem" | "cancelled" | "unknown";

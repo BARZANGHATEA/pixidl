@@ -130,6 +130,8 @@ pub struct Settings {
     // Engines
     pub ytdlp_path: String,
     pub ffmpeg_path: String,
+    /// JavaScript runtime for yt-dlp's YouTube support (Deno/Node/Bun); empty = auto.
+    pub js_runtime_path: String,
     pub torrent_listen_port: u16,
     pub torrent_enable_dht: bool,
     /// Keep seeding after a torrent completes.
@@ -175,6 +177,7 @@ impl Default for Settings {
             allowed_firefox_ids: Vec::new(),
             ytdlp_path: String::new(),
             ffmpeg_path: String::new(),
+            js_runtime_path: String::new(),
             torrent_listen_port: 0,
             torrent_enable_dht: true,
             torrent_seed_after_completion: false,

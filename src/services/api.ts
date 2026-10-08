@@ -12,7 +12,10 @@ import type {
   DownloadEvent,
   EngineKind,
   EngineStatus,
+  ExtensionBrowser,
+  PreparedExtension,
   GlobalStats,
+  LinkProbe,
   Priority,
   Settings,
   TorrentFilePreview,
@@ -79,6 +82,12 @@ export const api = {
   getLicenses: () => call<string>("get_licenses"),
   cancelPowerAction: () => call<boolean>("cancel_power_action"),
   quit: () => call<void>("quit_app"),
+  getExtensionBrowsers: () => call<ExtensionBrowser[]>("get_extension_browsers"),
+  getExtension: (browserName: string) => call<PreparedExtension>("get_extension", { browserName }),
+  openBrowserExtensionsPage: (browserName: string) => call<void>("open_browser_extensions_page", { browserName }),
+  revealPath: (path: string) => call<void>("reveal_path", { path }),
+  installDeno: () => call<string>("install_deno"),
+  probeLinks: (urls: string[]) => call<LinkProbe[]>("probe_links", { urls }),
 };
 
 export type Api = typeof api;

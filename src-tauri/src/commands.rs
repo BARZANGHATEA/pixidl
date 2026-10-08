@@ -252,6 +252,7 @@ pub fn delete_category(state: State<'_, AppState>, name: String) -> CmdResult<()
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineStatus {
+    pub js_runtime: ToolStatus,
     pub ytdlp: ToolStatus,
     pub ffmpeg: ToolStatus,
     pub torrent: TorrentEngineStatus,
@@ -262,6 +263,7 @@ pub struct EngineStatus {
 pub async fn get_engine_status(state: State<'_, AppState>) -> CmdResult<EngineStatus> {
     let (ytdlp, ffmpeg, torrent) = state.mgr.engine_status().await;
     Ok(EngineStatus {
+        js_runtime: state.mgr.js_runtime_status().await,
         ytdlp,
         ffmpeg,
         torrent,
@@ -273,6 +275,21 @@ pub async fn get_engine_status(state: State<'_, AppState>) -> CmdResult<EngineSt
 pub async fn install_ytdlp(state: State<'_, AppState>) -> CmdResult<String> {
     let p = state.mgr.install_ytdlp(&pixidl_core::paths::engines_dir()).await?;
     Ok(p.display().to_string())
+}
+
+#[tauri::command]
+pub async fn install_deno(state: State<'_, AppState>) -> CmdResult<String> {
+    let p = state.mgr.install_deno(&pixidl_core::paths::engines_dir()).await?;
+    Ok(p.display().to_string())
+}
+
+/// Name/size/type of several links (multi-link paste in the Add dialog).
+#[tauri::command]
+pub async fn probe_links(state: State<'_, AppState>, urls: Vec<String>) -> CmdResult<Vec<LinkProbe>> {
+    if urls.len() > pixidl_core::protocol::MAX_BATCH {
+        return Err(CommandError::msg(ErrorKind::Unknown, "Too many links at once (max 200)"));
+    }
+    Ok(state.mgr.probe_links(urls.into_iter().map(|u| (u, None)).collect()).await)
 }
 
 #[tauri::command]
@@ -365,4 +382,106 @@ pub fn cancel_power_action(app: AppHandle) -> bool {
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     crate::quit(app);
+}
+
+// ---------------------------------------------------------------- browser extensions
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionBrowser {
+    pub browser: browser::Browser,
+    pub label: String,
+    pub installed: bool,
+    pub executable: Option<String>,
+    pub package: String,
+    pub extensions_page: String,
+    /// Last time this browser's extension talked to pixidl.
+    pub client: Option<ExtensionClient>,
+}
+
+#[tauri::command]
+pub fn get_extension_browsers(state: State<'_, AppState>) -> Vec<ExtensionBrowser> {
+    let clients = state.mgr.extension_clients();
+    browser::EXTENSION_BROWSERS
+        .iter()
+        .map(|&b| {
+            let exe = browser::find_browser_executable(b);
+            let key = format!("{b:?}").to_ascii_lowercase();
+            ExtensionBrowser {
+                browser: b,
+                label: b.label().into(),
+                installed: exe.is_some(),
+                executable: exe.map(|p| p.display().to_string()),
+                package: b.package().into(),
+                extensions_page: b.extensions_page().into(),
+                client: clients.iter().find(|c| c.browser == key).cloned(),
+            }
+        })
+        .collect()
+}
+
+/// Folder holding the packaged extension: bundled resources in an installed
+/// app, `browser-extension/dist` in development.
+fn extension_source(app: &AppHandle) -> Option<PathBuf> {
+    let bundled = app.path().resource_dir().ok().map(|d| d.join("extension"));
+    let dev = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../browser-extension/dist"));
+    [bundled, Some(dev)].into_iter().flatten().find(|p| p.join("chromium").join("manifest.json").is_file())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreparedExtension {
+    /// Unpacked folder to load ("Load unpacked" / Firefox temporary add-on).
+    pub folder: String,
+    /// The package saved into the downloads folder (.zip / .xpi).
+    pub archive: String,
+    pub extensions_page: String,
+}
+
+/// "Download" the extension for a browser: saves the package into the
+/// downloads folder and keeps an unpacked copy in a stable location.
+#[tauri::command]
+pub fn get_extension(app: AppHandle, state: State<'_, AppState>, browser_name: String) -> CmdResult<PreparedExtension> {
+    let b = browser::Browser::parse(&browser_name).ok_or_else(|| CommandError::msg(ErrorKind::Unknown, "Unknown browser"))?;
+    let src = extension_source(&app).ok_or_else(|| CommandError::msg(ErrorKind::EngineUnavailable, "The extension package is missing from this build"))?;
+    let pkg = b.package();
+    let io = |e: std::io::Error| CommandError::from(pixidl_core::DownloadError::fs("Could not prepare the extension", &e));
+    // Stable unpacked copy (the browser keeps loading from this folder).
+    let folder = pixidl_core::paths::data_dir().join("extension").join(pkg);
+    if folder.exists() {
+        std::fs::remove_dir_all(&folder).map_err(io)?;
+    }
+    browser::copy_dir(&src.join(pkg), &folder).map_err(io)?;
+    // Package file in the user's downloads folder.
+    let archive_name = if b.is_firefox() { "pixidl-firefox.xpi" } else { "pixidl-chromium.zip" };
+    let dir = PathBuf::from(&state.mgr.settings().default_download_dir);
+    std::fs::create_dir_all(&dir).map_err(io)?;
+    let label = format!("{b:?}").to_ascii_lowercase();
+    let target = dir.join(if b.is_firefox() { "pixidl-extension-firefox.xpi".to_string() } else { format!("pixidl-extension-{label}.zip") });
+    std::fs::copy(src.join(archive_name), &target).map_err(io)?;
+    tracing::info!(browser = %label, "extension package prepared");
+    Ok(PreparedExtension { folder: folder.display().to_string(), archive: target.display().to_string(), extensions_page: b.extensions_page().into() })
+}
+
+/// Opens the browser's extensions page (chrome://extensions etc.). These
+/// pages can only be opened by starting the browser with the URL.
+#[tauri::command]
+pub fn open_browser_extensions_page(browser_name: String) -> CmdResult<()> {
+    let b = browser::Browser::parse(&browser_name).ok_or_else(|| CommandError::msg(ErrorKind::Unknown, "Unknown browser"))?;
+    let exe = browser::find_browser_executable(b).ok_or_else(|| CommandError::msg(ErrorKind::EngineUnavailable, format!("{} was not found on this computer", b.label())))?;
+    let mut cmd = std::process::Command::new(&exe);
+    cmd.arg(b.extensions_page()).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    cmd.spawn().map(|_| ()).map_err(|e| CommandError { kind: ErrorKind::EngineUnavailable, message: format!("Could not start {}", b.label()), detail: Some(e.to_string()) })
+}
+
+/// Shows a file or folder created by pixidl in the file manager.
+#[tauri::command]
+pub fn reveal_path(app: AppHandle, state: State<'_, AppState>, path: String) -> CmdResult<()> {
+    let p = PathBuf::from(&path);
+    let allowed = [pixidl_core::paths::data_dir(), PathBuf::from(&state.mgr.settings().default_download_dir)];
+    if !allowed.iter().any(|a| p.starts_with(a)) {
+        return Err(CommandError::msg(ErrorKind::PermissionDenied, "Path is outside pixidl's folders"));
+    }
+    let r = if p.is_dir() { app.opener().open_path(p.to_string_lossy(), None::<&str>) } else { app.opener().reveal_item_in_dir(&p) };
+    r.map_err(|e| CommandError { kind: ErrorKind::Filesystem, message: "Could not open the folder".into(), detail: Some(e.to_string()) })
 }

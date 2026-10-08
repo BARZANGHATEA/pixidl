@@ -4,7 +4,7 @@ import type { CommandError, EngineKind } from "../types";
 import type { Scope, SortKey, StatusFilter } from "../lib/filters";
 import type { PowerCountdown } from "../services/events";
 
-export type View = "downloads" | "history" | "settings" | "about";
+export type View = "downloads" | "history" | "extensions" | "settings" | "about";
 
 export interface Toast {
   id: number;

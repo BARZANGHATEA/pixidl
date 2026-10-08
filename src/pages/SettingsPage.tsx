@@ -388,17 +388,17 @@ function EnginesSection({ settings, set }: { settings: Settings; set: (p: Partia
   const toastError = useUi((s) => s.toastError);
   const toast = useUi((s) => s.toast);
   const [status, setStatus] = useState<EngineStatus | null>(null);
-  const [busy, setBusy] = useState<"install" | "update" | null>(null);
+  const [busy, setBusy] = useState<"install" | "update" | "deno" | null>(null);
   const refresh = () => api.getEngineStatus().then(setStatus).catch(() => {});
   useEffect(() => {
     void refresh();
-  }, [settings.ytdlpPath, settings.ffmpegPath]);
+  }, [settings.ytdlpPath, settings.ffmpegPath, settings.jsRuntimePath]);
 
-  const runTool = async (kind: "install" | "update") => {
+  const runTool = async (kind: "install" | "update" | "deno") => {
     setBusy(kind);
     try {
-      const out = kind === "install" ? await api.installYtdlp() : await api.updateYtdlp();
-      toast({ tone: "success", title: "yt-dlp", body: out.split("\n").slice(-2).join(" ") });
+      const out = kind === "install" ? await api.installYtdlp() : kind === "deno" ? await api.installDeno() : await api.updateYtdlp();
+      toast({ tone: "success", title: kind === "deno" ? "Deno" : "yt-dlp", body: out.split("\n").slice(-2).join(" ") });
       await refresh();
     } catch (e) {
       toastError("yt-dlp", e as CommandError);
@@ -428,6 +428,21 @@ function EnginesSection({ settings, set }: { settings: Settings; set: (p: Partia
           )}
         </div>
         {!status?.ytdlp.available && <div className="hint">{t("settings.installHint")}</div>}
+      </div>
+      <div className="engine-card" style={{ marginTop: 10 }}>
+        <div className="status-line">
+          <StatusIcon ok={!!status?.jsRuntime.available} />
+          <strong>{t("settings.jsRuntime")}</strong>
+          <span className="muted">{status ? (status.jsRuntime.available ? status.jsRuntime.version : t("settings.unavailable")) : "…"}</span>
+        </div>
+        {status?.jsRuntime.path && <div className="hint mono">{status.jsRuntime.path}</div>}
+        <div className="row">
+          <CommitInput width={360} label={t("settings.customPath")} placeholder={t("settings.customPath")} value={settings.jsRuntimePath} onCommit={(v) => set({ jsRuntimePath: v.trim() })} />
+          {!status?.jsRuntime.available && (
+            <button className="btn sm primary" disabled={!!busy} onClick={() => runTool("deno")}>{busy === "deno" ? t("settings.installing") : t("settings.installDeno")}</button>
+          )}
+        </div>
+        <div className="hint">{status?.jsRuntime.available ? t("settings.jsRuntimeOk") : t("settings.jsRuntimeHint")}</div>
       </div>
       <div className="engine-card" style={{ marginTop: 10 }}>
         <div className="status-line">

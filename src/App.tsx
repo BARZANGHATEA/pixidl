@@ -13,6 +13,7 @@ import { DownloadsPage } from "./pages/DownloadsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { AboutPage } from "./pages/AboutPage";
+import { ExtensionsPage } from "./pages/ExtensionsPage";
 import { FirstRun } from "./pages/FirstRun";
 import { useUi } from "./stores/ui";
 import { useSettings } from "./stores/settings";
@@ -54,7 +55,7 @@ export default function App() {
             if (!path.toLowerCase().endsWith(".torrent")) continue;
             try {
               const preview = await api.readTorrentFile(path);
-              const d = await api.addDownload({ url: "", torrentBase64: preview.base64, engineOptions: { audioOnly: false, explicitFilename: false }, startPaused: false });
+              const d = await api.addDownload({ url: "", torrentBase64: preview.base64, engineOptions: { audioOnly: false, subtitles: false, explicitFilename: false }, startPaused: false });
               useUi.getState().toast({ tone: "success", title: t("toast.added"), body: d.filename });
             } catch (err) {
               useUi.getState().toastError(t("toast.error"), err as CommandError);
@@ -128,6 +129,7 @@ export default function App() {
         <PowerBanner />
         {view === "downloads" && <DownloadsPage />}
         {view === "history" && <HistoryPage />}
+        {view === "extensions" && <ExtensionsPage />}
         {view === "settings" && <SettingsPage />}
         {view === "about" && <AboutPage />}
         <StatusBar />

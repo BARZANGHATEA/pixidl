@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 use crate::manager::{AddSource, DownloadManager};
 use crate::security;
-use crate::types::{AddDownloadRequest, Download, DownloadStatus};
+use crate::types::{AddDownloadRequest, Download, DownloadStatus, EngineKind};
 
 pub const PROTOCOL_VERSION: u32 = 1;
 /// Maximum size of one message in either direction.
@@ -42,6 +42,15 @@ pub struct AddItem {
     pub url: String,
     pub filename: Option<String>,
     pub referrer: Option<String>,
+    /// Optional engine hint (`http`, `video`, `torrent`); the app validates it.
+    pub engine: Option<EngineKind>,
+}
+
+/// Which extension is talking (optional `client` field of the envelope).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClientInfo {
+    pub browser: String,
+    pub version: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +62,10 @@ pub enum Request {
     Pause { download_id: String },
     Resume { download_id: String },
     Cancel { download_id: String },
+    /// Look up file name, size and type for links before sending them.
+    ProbeLinks(Vec<AddItem>),
+    /// Bring the app to the front with the Add dialog pre-filled.
+    OpenInApp(AddItem),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +83,18 @@ impl ProtocolError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Envelope {
     pub id: Option<String>,
+    pub client: Option<ClientInfo>,
     pub request: Request,
+}
+
+const KNOWN_BROWSERS: &[&str] = &["chrome", "edge", "brave", "firefox", "chromium", "opera", "vivaldi", "other"];
+
+fn parse_client(v: Option<&Value>) -> Option<ClientInfo> {
+    let o = v?.as_object()?;
+    let browser = o.get("browser")?.as_str()?.to_ascii_lowercase();
+    let browser = if KNOWN_BROWSERS.contains(&browser.as_str()) { browser } else { "other".into() };
+    let version: String = o.get("version").and_then(|v| v.as_str()).unwrap_or("").chars().filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-').take(32).collect();
+    Some(ClientInfo { browser, version })
 }
 
 fn str_field(p: &Value, key: &str, max: usize, required: bool) -> Result<Option<String>, ProtocolError> {
@@ -103,7 +127,11 @@ fn parse_item(p: &Value) -> Result<AddItem, ProtocolError> {
         .filter(|f| f != "download");
     let referrer = str_field(p, "referrer", MAX_REFERRER_CHARS, false)?
         .filter(|r| url::Url::parse(r).map(|u| u.scheme() == "http" || u.scheme() == "https").unwrap_or(false));
-    Ok(AddItem { url: url.trim().to_string(), filename, referrer })
+    let engine = match str_field(p, "engine", 16, false)?.as_deref() {
+        None => None,
+        Some(e) => Some(EngineKind::parse(e).ok_or_else(|| ProtocolError::new(ErrorCode::InvalidPayload, "engine must be http, video or torrent"))?),
+    };
+    Ok(AddItem { url: url.trim().to_string(), filename, referrer, engine })
 }
 
 fn download_id(p: &Value) -> Result<String, ProtocolError> {
@@ -156,9 +184,17 @@ pub fn parse(raw: &[u8]) -> Result<Envelope, (Option<String>, ProtocolError)> {
         "pause" => Request::Pause { download_id: download_id(payload).map_err(err)? },
         "resume" => Request::Resume { download_id: download_id(payload).map_err(err)? },
         "cancel" => Request::Cancel { download_id: download_id(payload).map_err(err)? },
+        "probe_links" => {
+            let items = payload.get("items").and_then(|i| i.as_array()).ok_or_else(|| err(ProtocolError::new(ErrorCode::InvalidPayload, "items must be an array")))?;
+            if items.is_empty() || items.len() > MAX_BATCH {
+                return Err(err(ProtocolError::new(ErrorCode::InvalidPayload, format!("items must contain 1–{MAX_BATCH} entries"))));
+            }
+            Request::ProbeLinks(items.iter().map(parse_item).collect::<Result<_, _>>().map_err(err)?)
+        }
+        "open_in_app" => Request::OpenInApp(parse_item(payload).map_err(err)?),
         other => return Err(err(ProtocolError::new(ErrorCode::UnknownType, format!("Unknown message type: {}", other.chars().take(40).collect::<String>())))),
     };
-    Ok(Envelope { id, request })
+    Ok(Envelope { id, client: parse_client(obj.get("client")), request })
 }
 
 pub fn error_response(id: Option<&str>, e: &ProtocolError) -> Value {
@@ -199,13 +235,34 @@ pub async fn handle(mgr: &DownloadManager, raw: &[u8]) -> Value {
         Err((id, e)) => return error_response(id.as_deref(), &e),
     };
     let id = env.id.as_deref();
+    if let Some(c) = &env.client {
+        mgr.record_extension_client(&c.browser, &c.version);
+    }
     if !mgr.settings().browser_integration && env.request != Request::Ping {
         return error_response(id, &ProtocolError::new(ErrorCode::Unauthorized, "Browser integration is disabled in pixidl settings"));
     }
-    let add = |item: AddItem| AddDownloadRequest { url: item.url, filename: item.filename, referrer: item.referrer, ..Default::default() };
+    let add = |item: AddItem| AddDownloadRequest { url: item.url, filename: item.filename, referrer: item.referrer, engine: item.engine, ..Default::default() };
     let not_found = || ProtocolError::new(ErrorCode::NotFound, "Download not found");
     match env.request {
-        Request::Ping => ok(id, json!({ "app": crate::APP_NAME, "app_version": crate::APP_VERSION, "protocol_version": PROTOCOL_VERSION })),
+        Request::Ping => {
+            let s = mgr.settings();
+            ok(id, json!({
+                "app": crate::APP_NAME,
+                "app_version": crate::APP_VERSION,
+                "protocol_version": PROTOCOL_VERSION,
+                "integration_enabled": s.browser_integration,
+                "accent_color": s.accent_color,
+                "language": s.language,
+            }))
+        }
+        Request::ProbeLinks(items) => {
+            let probes = mgr.probe_links(items.into_iter().map(|i| (i.url, i.referrer)).collect()).await;
+            ok(id, json!({ "results": probes }))
+        }
+        Request::OpenInApp(item) => match mgr.request_add_dialog(&item.url) {
+            Ok(()) => ok(id, json!({})),
+            Err(e) => error_response(id, &ProtocolError::new(ErrorCode::InvalidUrl, e.message)),
+        },
         Request::AddDownload(item) => match mgr.add(add(item), AddSource::Browser).await {
             Ok(d) => ok(id, json!({ "download_id": d.id, "filename": d.filename, "engine": d.engine })),
             Err(e) => error_response(id, &ProtocolError::new(if e.kind == crate::types::ErrorKind::InvalidUrl { ErrorCode::InvalidUrl } else { ErrorCode::Internal }, e.message)),
@@ -327,7 +384,7 @@ mod tests {
         let e = p(json!({"version":1,"type":"add_download","payload":{"url":"https://example.com/f.zip","filename":"../../x.exe","referrer":"https://example.com/page"}})).unwrap();
         assert_eq!(
             e.request,
-            Request::AddDownload(AddItem { url: "https://example.com/f.zip".into(), filename: Some("x.exe".into()), referrer: Some("https://example.com/page".into()) })
+            Request::AddDownload(AddItem { url: "https://example.com/f.zip".into(), filename: Some("x.exe".into()), referrer: Some("https://example.com/page".into()), engine: None })
         );
         let e = p(json!({"version":1,"type":"add_multiple_downloads","payload":{"items":[{"url":"https://a.com/1"},{"url":"magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567"}]}})).unwrap();
         assert!(matches!(e.request, Request::AddMultiple(ref v) if v.len() == 2));
@@ -358,6 +415,20 @@ mod tests {
         // The correlation id survives errors.
         let (id, _) = p(json!({"version":1,"type":"nope","id":"x9"})).unwrap_err();
         assert_eq!(id.as_deref(), Some("x9"));
+    }
+
+    #[test]
+    fn new_message_types_and_client() {
+        let e = p(json!({"version":1,"type":"probe_links","client":{"browser":"Firefox","version":"2.0.0"},"payload":{"items":[{"url":"https://a.com/x.zip"}]}})).unwrap();
+        assert!(matches!(e.request, Request::ProbeLinks(ref v) if v.len() == 1));
+        assert_eq!(e.client, Some(ClientInfo { browser: "firefox".into(), version: "2.0.0".into() }));
+        let e = p(json!({"version":1,"type":"open_in_app","client":{"browser":"weird<script>","version":"1<>2"},"payload":{"url":"https://www.youtube.com/watch?v=x"}})).unwrap();
+        assert!(matches!(e.request, Request::OpenInApp(_)));
+        assert_eq!(e.client, Some(ClientInfo { browser: "other".into(), version: "12".into() }));
+        let e = p(json!({"version":1,"type":"add_download","payload":{"url":"https://youtu.be/x","engine":"video"}})).unwrap();
+        assert!(matches!(e.request, Request::AddDownload(AddItem { engine: Some(EngineKind::Video), .. })));
+        assert_eq!(p(json!({"version":1,"type":"add_download","payload":{"url":"https://a.com","engine":"rm"}})).unwrap_err().1.code, ErrorCode::InvalidPayload);
+        assert_eq!(p(json!({"version":1,"type":"probe_links","payload":{"items":[]}})).unwrap_err().1.code, ErrorCode::InvalidPayload);
     }
 
     #[test]

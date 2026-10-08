@@ -26,6 +26,7 @@ export function useBackend() {
             detail: e.download.errorDetail,
           });
         if (e.type === "queue_finished") ui.toast({ tone: "info", title: t("toast.queueFinished") });
+        if (e.type === "show_add_dialog") ui.openAdd(e.url);
       },
       onClipboardUrl: ({ url, engine }) =>
         useUi.getState().toast({
@@ -35,7 +36,7 @@ export function useBackend() {
           action: { label: t("add.download"), run: () => useUi.getState().openAdd(url, engine) },
         }),
       onNavigate: (view) => {
-        if (view === "settings" || view === "about" || view === "history" || view === "downloads") useUi.getState().setView(view);
+        if (view === "settings" || view === "about" || view === "history" || view === "downloads" || view === "extensions") useUi.getState().setView(view);
       },
       onError: (e) => useUi.getState().toastError(t("toast.error"), e),
       onPowerCountdown: (p) => useUi.getState().setPower(p),

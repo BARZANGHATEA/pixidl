@@ -23,7 +23,11 @@ allowedExtensionIds: Array<string>,
 /**
  * Firefox add-on IDs allowed to talk to the native host.
  */
-allowedFirefoxIds: Array<string>, ytdlpPath: string, ffmpegPath: string, torrentListenPort: number, torrentEnableDht: boolean, 
+allowedFirefoxIds: Array<string>, ytdlpPath: string, ffmpegPath: string, 
+/**
+ * JavaScript runtime for yt-dlp's YouTube support (Deno/Node/Bun); empty = auto.
+ */
+jsRuntimePath: string, torrentListenPort: number, torrentEnableDht: boolean, 
 /**
  * Keep seeding after a torrent completes.
  */

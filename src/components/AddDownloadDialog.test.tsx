@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AddDownloadDialog, isAcceptableUrl, isInside } from "./AddDownloadDialog";
+import { AddDownloadDialog, extractUrls, isAcceptableUrl, isInside } from "./AddDownloadDialog";
 import { useUi } from "../stores/ui";
 import { useSettings } from "../stores/settings";
 import { api } from "../services/api";
@@ -11,6 +11,7 @@ vi.mock("../services/api", () => ({
   api: {
     inspectUrl: vi.fn(),
     addDownload: vi.fn(),
+    probeLinks: vi.fn(),
     readTorrentFile: vi.fn(),
   },
 }));
@@ -59,7 +60,7 @@ describe("AddDownloadDialog", () => {
         engine: "video",
         filename: "Clip",
         video: {
-          id: "x", title: "Clip", thumbnail: null, durationSeconds: 75, uploader: "Someone", extractor: "Generic", webpageUrl: "", isLive: false, ffmpegAvailable: true, formats: [],
+          id: "x", title: "Clip", thumbnail: null, durationSeconds: 75, uploader: "Someone", extractor: "Generic", webpageUrl: "", isLive: false, ffmpegAvailable: true, formats: [], playlist: null,
           presets: [
             { selector: "bv*+ba/b", label: "Best quality", height: 1080, audioOnly: false, approxSize: 5000 },
             { selector: "bv*[height<=720]+ba/b[height<=720]", label: "720p", height: 720, audioOnly: false, approxSize: 3000 },
@@ -107,5 +108,61 @@ describe("AddDownloadDialog", () => {
     expect(screen.getByText("Enter a valid http(s) link or magnet link.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
     expect(api.inspectUrl).not.toHaveBeenCalled();
+  });
+
+  it("extracts several links from pasted text", () => {
+    expect(extractUrls("https://a.com/1.zip\nhttps://a.com/2.zip  https://a.com/1.zip, nope magnet:?xt=urn:btih:abc")).toEqual(["https://a.com/1.zip", "https://a.com/2.zip", "magnet:?xt=urn:btih:abc"]);
+  });
+
+  it("adds several pasted links with names and sizes", async () => {
+    vi.mocked(api.probeLinks).mockResolvedValue([
+      { url: "https://a.com/one.zip", engine: "http", filename: "one.zip", totalBytes: 1024 * 1024, contentType: "application/zip", resumable: true, error: null },
+      { url: "https://a.com/two.iso", engine: "http", filename: "two.iso", totalBytes: 2 * 1024 * 1024, contentType: null, resumable: true, error: null },
+    ]);
+    vi.mocked(api.addDownload).mockResolvedValue({ filename: "x" } as never);
+    useUi.setState({ addDialog: { open: true, url: "https://a.com/one.zip\nhttps://a.com/two.iso", engine: null } });
+    render(<AddDownloadDialog />);
+    expect(screen.getByRole("heading", { name: "Add 2 downloads" })).toBeInTheDocument();
+    expect(screen.getByText("two.iso")).toBeInTheDocument(); // name from the URL right away
+    expect(await screen.findByText(/3\.0 MB/)).toBeInTheDocument(); // total once sizes are known
+    await userEvent.click(screen.getByRole("checkbox", { name: /two\.iso/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Download 1" }));
+    await waitFor(() => expect(api.addDownload).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.addDownload).mock.calls[0][0].url).toBe("https://a.com/one.zip");
+    expect(api.inspectUrl).not.toHaveBeenCalled();
+  });
+
+  it("downloads selected playlist videos as audio in the chosen format", async () => {
+    vi.mocked(api.inspectUrl).mockResolvedValue(
+      inspection({
+        engine: "video",
+        filename: "Mix",
+        video: {
+          id: "PL", title: "Mix", thumbnail: null, durationSeconds: null, uploader: null, extractor: "YoutubeTab", webpageUrl: "", isLive: false, ffmpegAvailable: true, formats: [],
+          presets: [
+            { selector: "bv*+ba/b", label: "Best quality", height: null, audioOnly: false, approxSize: null },
+            { selector: "ba/b", label: "Audio only", height: null, audioOnly: true, approxSize: null },
+          ],
+          playlist: { id: "PL", title: "Mix", uploader: null, entries: [
+            { index: 1, id: "a", title: "First song", url: "https://www.youtube.com/watch?v=a", durationSeconds: 200 },
+            { index: 2, id: "b", title: "Second song", url: "https://www.youtube.com/watch?v=b", durationSeconds: 100 },
+            { index: 3, id: "c", title: "Third song", url: "https://www.youtube.com/watch?v=c", durationSeconds: null },
+          ] },
+        },
+      }),
+    );
+    vi.mocked(api.addDownload).mockResolvedValue({ filename: "x" } as never);
+    useUi.setState({ addDialog: { open: true, url: "https://www.youtube.com/playlist?list=PL", engine: null } });
+    render(<AddDownloadDialog />);
+    await waitFor(() => expect(screen.getByText("2. Second song")).toBeInTheDocument());
+    expect(screen.getByText("3 of 3 videos selected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Second song/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Audio only/ }));
+    await userEvent.selectOptions(screen.getByLabelText("Audio format"), "m4a");
+    await userEvent.click(screen.getByRole("button", { name: "Download 2" }));
+    await waitFor(() => expect(api.addDownload).toHaveBeenCalledTimes(2));
+    const urls = vi.mocked(api.addDownload).mock.calls.map((c) => c[0].url);
+    expect(urls).toEqual(["https://www.youtube.com/watch?v=a", "https://www.youtube.com/watch?v=c"]);
+    expect(vi.mocked(api.addDownload).mock.calls[0][0]).toMatchObject({ engine: "video", engineOptions: { formatId: "ba/b", audioOnly: true, audioFormat: "m4a" } });
   });
 });

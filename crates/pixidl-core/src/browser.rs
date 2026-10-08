@@ -279,3 +279,156 @@ mod tests {
         assert!(NATIVE_HOST_NAME.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_'));
     }
 }
+
+// ---------------------------------------------------------------------------
+// Installed browsers (for the in-app Extensions page)
+
+/// Browsers the extension supports, as shown in the app.
+pub const EXTENSION_BROWSERS: [Browser; 4] = [Browser::Chrome, Browser::Edge, Browser::Brave, Browser::Firefox];
+
+impl Browser {
+    /// Extensions-management page of the browser.
+    pub fn extensions_page(self) -> &'static str {
+        match self {
+            Browser::Chrome | Browser::Chromium => "chrome://extensions/",
+            Browser::Edge => "edge://extensions/",
+            Browser::Brave => "brave://extensions/",
+            Browser::Vivaldi => "vivaldi://extensions/",
+            Browser::Firefox => "about:debugging#/runtime/this-firefox",
+        }
+    }
+
+    /// Which extension package the browser uses.
+    pub fn package(self) -> &'static str {
+        if self.is_firefox() {
+            "firefox"
+        } else {
+            "chromium"
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Browser> {
+        Some(match s {
+            "chrome" => Browser::Chrome,
+            "edge" => Browser::Edge,
+            "brave" => Browser::Brave,
+            "chromium" => Browser::Chromium,
+            "vivaldi" => Browser::Vivaldi,
+            "firefox" => Browser::Firefox,
+            _ => return None,
+        })
+    }
+}
+
+/// Finds the browser executable (Windows: App Paths registry + standard
+/// install folders; Linux: PATH; macOS: /Applications).
+pub fn find_browser_executable(b: Browser) -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+        let exe = match b {
+            Browser::Chrome => "chrome.exe",
+            Browser::Edge => "msedge.exe",
+            Browser::Brave => "brave.exe",
+            Browser::Chromium => "chromium.exe",
+            Browser::Vivaldi => "vivaldi.exe",
+            Browser::Firefox => "firefox.exe",
+        };
+        for hive in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
+            let key = winreg::RegKey::predef(hive).open_subkey(format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe}"));
+            if let Ok(k) = key {
+                if let Ok(v) = k.get_value::<String, _>("") {
+                    let p = PathBuf::from(v.trim_matches('"'));
+                    if p.is_file() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+        let rel = match b {
+            Browser::Chrome => r"Google\Chrome\Application\chrome.exe",
+            Browser::Edge => r"Microsoft\Edge\Application\msedge.exe",
+            Browser::Brave => r"BraveSoftware\Brave-Browser\Application\brave.exe",
+            Browser::Chromium => r"Chromium\Application\chrome.exe",
+            Browser::Vivaldi => r"Vivaldi\Application\vivaldi.exe",
+            Browser::Firefox => r"Mozilla Firefox\firefox.exe",
+        };
+        for var in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
+            if let Some(base) = std::env::var_os(var) {
+                let p = PathBuf::from(base).join(rel);
+                if p.is_file() {
+                    return Some(p);
+                }
+            }
+        }
+        None
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let app = match b {
+            Browser::Chrome => "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            Browser::Edge => "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            Browser::Brave => "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            Browser::Chromium => "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            Browser::Vivaldi => "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
+            Browser::Firefox => "/Applications/Firefox.app/Contents/MacOS/firefox",
+        };
+        let p = PathBuf::from(app);
+        p.is_file().then_some(p)
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let names: &[&str] = match b {
+            Browser::Chrome => &["google-chrome", "google-chrome-stable"],
+            Browser::Edge => &["microsoft-edge", "microsoft-edge-stable"],
+            Browser::Brave => &["brave-browser", "brave"],
+            Browser::Chromium => &["chromium", "chromium-browser"],
+            Browser::Vivaldi => &["vivaldi", "vivaldi-stable"],
+            Browser::Firefox => &["firefox", "firefox-esr"],
+        };
+        let path = std::env::var_os("PATH")?;
+        names.iter().flat_map(|n| std::env::split_paths(&path).map(move |d| d.join(n))).find(|p| p.is_file())
+    }
+}
+
+/// Copies a directory tree (used to install the bundled extension package
+/// into a stable folder the browser can load).
+pub fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::*;
+
+    #[test]
+    fn pages_and_packages() {
+        assert_eq!(Browser::Edge.extensions_page(), "edge://extensions/");
+        assert_eq!(Browser::Firefox.package(), "firefox");
+        assert_eq!(Browser::Brave.package(), "chromium");
+        assert_eq!(Browser::parse("brave"), Some(Browser::Brave));
+        assert_eq!(Browser::parse("safari"), None);
+    }
+
+    #[test]
+    fn copies_trees() {
+        let a = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(a.path().join("x/y")).unwrap();
+        std::fs::write(a.path().join("x/y/f.txt"), b"hi").unwrap();
+        std::fs::write(a.path().join("manifest.json"), b"{}").unwrap();
+        let b = tempfile::tempdir().unwrap();
+        copy_dir(a.path(), &b.path().join("out")).unwrap();
+        assert_eq!(std::fs::read(b.path().join("out/x/y/f.txt")).unwrap(), b"hi");
+        assert!(b.path().join("out/manifest.json").exists());
+    }
+}

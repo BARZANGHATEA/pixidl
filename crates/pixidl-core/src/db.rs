@@ -455,6 +455,23 @@ impl Db {
         crate::security::category_for(filename, engine).to_string()
     }
 
+    // ---------------------------------------------------------------- key/value
+
+    /// Small app state stored next to the settings (keys are prefixed so they
+    /// never collide with settings).
+    pub fn get_kv(&self, key: &str) -> Result<Option<String>> {
+        let c = self.conn.lock();
+        Ok(c.query_row("SELECT value FROM settings WHERE key=?1", [format!("kv.{key}")], |r| r.get(0)).optional()?)
+    }
+
+    pub fn set_kv(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.lock().execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            params![format!("kv.{key}"), value],
+        )?;
+        Ok(())
+    }
+
     // ---------------------------------------------------------------- settings
 
     pub fn load_settings(&self) -> Result<Settings> {

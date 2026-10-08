@@ -57,6 +57,7 @@ fn on_manager_event(app: &AppHandle, event: ManagerEvent) {
         ManagerEvent::DownloadFailed { download } if s.notify_failed => {
             notify(app, "Download failed", &format!("{} — {}", download.filename, download.error_message.clone().unwrap_or_default()));
         }
+        ManagerEvent::ShowAddDialog { .. } => tray::show_main(app),
         ManagerEvent::QueueFinished => {
             if s.notify_queue_finished {
                 notify(app, "All downloads finished", "The download queue is empty.");
@@ -257,6 +258,12 @@ pub fn run() {
             commands::get_licenses,
             commands::cancel_power_action,
             commands::quit_app,
+            commands::get_extension_browsers,
+            commands::get_extension,
+            commands::open_browser_extensions_page,
+            commands::reveal_path,
+            commands::install_deno,
+            commands::probe_links,
         ])
         .build(tauri::generate_context!())
         .expect("error while building pixidl")
