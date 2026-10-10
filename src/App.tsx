@@ -25,7 +25,7 @@ import { api } from "./services/api";
 import type { CommandError } from "./types";
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const view = useUi((s) => s.view);
   const addOpen = useUi((s) => s.addDialog.open);
   const settings = useSettings((s) => s.settings);
@@ -44,6 +44,15 @@ export default function App() {
   useEffect(() => {
     if (settings) applyLanguage(settings.language);
   }, [settings?.language]);
+
+  // The tray menu and desktop notifications are drawn by the OS: send them translated.
+  const lang = i18n.language;
+  useEffect(() => {
+    const keys = ["show", "pauseAll", "resumeAll", "openDir", "settings", "exit", "active", "speed", "downloadCompleted", "torrentCompleted", "downloadFailed", "queueFinished", "queueFinishedBody"];
+    // Placeholders are kept as "{{…}}" for the Rust side to fill in.
+    const labels = Object.fromEntries(keys.map((k) => [k, t(`native.${k}`, { n: "{{n}}", speed: "{{speed}}" } as Record<string, string>)]));
+    api.setNativeLabels(labels).catch(() => {});
+  }, [lang, t]);
 
   // Drop .torrent files or links anywhere on the window.
   useEffect(() => {

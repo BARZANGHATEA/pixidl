@@ -502,3 +502,10 @@ pub fn reveal_path(app: AppHandle, state: State<'_, AppState>, path: String) -> 
     let r = if p.is_dir() { app.opener().open_path(p.to_string_lossy(), None::<&str>) } else { app.opener().reveal_item_in_dir(&p) };
     r.map_err(|e| CommandError { kind: ErrorKind::Filesystem, message: "Could not open the folder".into(), detail: Some(e.to_string()) })
 }
+
+/// Translated tray menu and notification texts from the UI.
+#[tauri::command]
+pub fn set_native_labels(labels: crate::labels::NativeLabels) {
+    crate::labels::set(labels);
+    crate::tray::relabel();
+}

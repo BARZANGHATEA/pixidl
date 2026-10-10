@@ -7,7 +7,28 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_opener::OpenerExt;
 
+use crate::labels;
 use crate::state::AppState;
+
+/// Menu items whose text follows the UI language.
+static ITEMS: std::sync::OnceLock<Vec<(&'static str, MenuItem<Wry>)>> = std::sync::OnceLock::new();
+
+/// Applies the current labels to the tray menu.
+pub fn relabel() {
+    let l = labels::get();
+    for (id, item) in ITEMS.get().into_iter().flatten() {
+        let text = match *id {
+            "show" => &l.show,
+            "pause_all" => &l.pause_all,
+            "resume_all" => &l.resume_all,
+            "open_dir" => &l.open_dir,
+            "settings" => &l.settings,
+            "exit" => &l.exit,
+            _ => continue,
+        };
+        let _ = item.set_text(text);
+    }
+}
 
 pub fn format_speed(bps: u64) -> String {
     const UNITS: [&str; 4] = ["B/s", "KB/s", "MB/s", "GB/s"];
@@ -43,6 +64,14 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let exit = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
+    let _ = ITEMS.set(vec![
+        ("show", show.clone()),
+        ("pause_all", pause_all.clone()),
+        ("resume_all", resume_all.clone()),
+        ("open_dir", open_dir.clone()),
+        ("settings", settings.clone()),
+        ("exit", exit.clone()),
+    ]);
     let menu: Menu<Wry> = Menu::with_items(app, &[&title, &sep()?, &active, &speed, &sep()?, &show, &pause_all, &resume_all, &open_dir, &settings, &sep()?, &exit])?;
 
     let mut builder = TrayIconBuilder::with_id("main")
@@ -88,10 +117,13 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         loop {
             tokio::time::sleep(Duration::from_secs(2)).await;
             let Ok(stats) = handle.state::<AppState>().mgr.stats() else { continue };
-            let _ = active.set_text(format!("Active: {}", stats.active));
-            let _ = speed.set_text(format!("Speed: {}", format_speed(stats.download_bps)));
+            let l = labels::get();
+            let active_text = l.active.replace("{{n}}", &stats.active.to_string());
+            let speed_text = l.speed.replace("{{speed}}", &format_speed(stats.download_bps));
+            let _ = active.set_text(&active_text);
+            let _ = speed.set_text(&speed_text);
             if let Some(tray) = handle.tray_by_id("main") {
-                let _ = tray.set_tooltip(Some(format!("pixidl — {} active, {}", stats.active, format_speed(stats.download_bps))));
+                let _ = tray.set_tooltip(Some(format!("pixidl — {active_text} · {speed_text}")));
             }
         }
     });

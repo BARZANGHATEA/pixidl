@@ -198,6 +198,9 @@ impl Default for Settings {
     }
 }
 
+/// UI languages (codes of the translation files in `src/i18n`).
+pub const LANGUAGES: [&str; 12] = ["en", "fa", "ckb", "kmr", "ar", "tr", "de", "fr", "es", "pt", "ru", "zh"];
+
 /// Browsers yt-dlp can read cookies from (`""` = don't use cookies).
 pub const COOKIE_BROWSERS: [&str; 8] = ["", "firefox", "chrome", "edge", "brave", "chromium", "opera", "vivaldi"];
 
@@ -245,7 +248,7 @@ impl Settings {
         if !COOKIE_BROWSERS.contains(&self.video_cookies_browser.as_str()) {
             self.video_cookies_browser.clear();
         }
-        if !["en", "fa"].contains(&self.language.as_str()) {
+        if !LANGUAGES.contains(&self.language.as_str()) {
             self.language = "en".into();
         }
         let accent_ok = self.accent_color.len() == 7

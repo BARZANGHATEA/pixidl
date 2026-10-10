@@ -7,6 +7,7 @@
 mod clipboard;
 mod commands;
 mod error;
+mod labels;
 mod logging;
 mod power;
 mod state;
@@ -51,16 +52,18 @@ fn on_manager_event(app: &AppHandle, event: ManagerEvent) {
     let s = state.mgr.settings();
     match &event {
         ManagerEvent::DownloadCompleted { download } if s.notify_completed => {
-            let title = if download.engine == pixidl_core::types::EngineKind::Torrent { "Torrent completed" } else { "Download completed" };
+            let l = labels::get();
+            let title = if download.engine == pixidl_core::types::EngineKind::Torrent { &l.torrent_completed } else { &l.download_completed };
             notify(app, title, &download.filename);
         }
         ManagerEvent::DownloadFailed { download } if s.notify_failed => {
-            notify(app, "Download failed", &format!("{} — {}", download.filename, download.error_message.clone().unwrap_or_default()));
+            notify(app, &labels::get().download_failed, &format!("{} — {}", download.filename, download.error_message.clone().unwrap_or_default()));
         }
         ManagerEvent::ShowAddDialog { .. } => tray::show_main(app),
         ManagerEvent::QueueFinished => {
             if s.notify_queue_finished {
-                notify(app, "All downloads finished", "The download queue is empty.");
+                let l = labels::get();
+                notify(app, &l.queue_finished, &l.queue_finished_body);
             }
             if s.schedule.enabled {
                 power::schedule(app, s.schedule.after_queue);
@@ -273,6 +276,7 @@ pub fn run() {
             commands::reveal_path,
             commands::install_deno,
             commands::install_ffmpeg,
+            commands::set_native_labels,
             commands::probe_links,
         ])
         .build(tauri::generate_context!())

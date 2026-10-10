@@ -164,7 +164,7 @@ export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Downloa
           aria-expanded={!!menu}
           onClick={(e) => {
             const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            openMenuAt(lang === "fa" ? r.left : r.right - 210, r.bottom + 4);
+            openMenuAt(document.documentElement.dir === "rtl" ? r.left : r.right - 210, r.bottom + 4);
           }}
         >
           <MoreVertical />

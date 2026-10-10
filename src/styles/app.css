@@ -73,7 +73,9 @@ body {
   user-select: none;
   overflow: hidden;
 }
-:root[lang="fa"] body { font-family: var(--font-fa); }
+/* Arabic-script languages (Persian, Sorani, Arabic) use Vazirmatn; Chinese uses the system CJK font. */
+:root[dir="rtl"] body { font-family: var(--font-fa); }
+:root[lang="zh"] body { font-family: "Inter Variable", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; }
 input, textarea, select, button { font: inherit; color: inherit; }
 input, textarea { user-select: text; }
 button { cursor: pointer; }

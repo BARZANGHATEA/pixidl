@@ -445,5 +445,20 @@
       "ffmpeg": "FFmpeg",
       "yt-dlp": "yt-dlp"
     }
+  },
+  "native": {
+    "show": "نمایش",
+    "pauseAll": "توقف همه",
+    "resumeAll": "ادامه همه",
+    "openDir": "باز کردن پوشه دانلودها",
+    "settings": "تنظیمات",
+    "exit": "خروج",
+    "active": "فعال: {{n}}",
+    "speed": "سرعت: {{speed}}",
+    "downloadCompleted": "دانلود کامل شد",
+    "torrentCompleted": "تورنت کامل شد",
+    "downloadFailed": "دانلود ناموفق بود",
+    "queueFinished": "همه دانلودها تمام شد",
+    "queueFinishedBody": "صف دانلود خالی است."
   }
 }

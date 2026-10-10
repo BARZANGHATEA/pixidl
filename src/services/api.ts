@@ -88,6 +88,7 @@ export const api = {
   revealPath: (path: string) => call<void>("reveal_path", { path }),
   installDeno: () => call<string>("install_deno"),
   installFfmpeg: () => call<string>("install_ffmpeg"),
+  setNativeLabels: (labels: Record<string, string>) => call<void>("set_native_labels", { labels }),
   probeLinks: (urls: string[]) => call<LinkProbe[]>("probe_links", { urls }),
 };
 

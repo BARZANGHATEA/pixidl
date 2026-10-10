@@ -5,7 +5,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { api } from "../services/api";
 import { useSettings } from "../stores/settings";
 import { Switch } from "../components/Switch";
-import { applyLanguage, LANGUAGES } from "../i18n";
+import { applyLanguage, AVAILABLE_LANGUAGES as LANGUAGES } from "../i18n";
 import type { EngineStatus, Settings } from "../types";
 
 /** Minimal one-screen setup shown on first launch. */

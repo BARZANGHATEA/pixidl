@@ -7,7 +7,7 @@ import { useUi } from "../stores/ui";
 import { useToolSetup } from "../stores/toolSetup";
 import { api } from "../services/api";
 import { Switch } from "../components/Switch";
-import { applyLanguage, LANGUAGES } from "../i18n";
+import { applyLanguage, AVAILABLE_LANGUAGES as LANGUAGES } from "../i18n";
 import { limitToMBps, parseLimitMBps } from "../lib/format";
 import type { BrowserIntegrationStatus, Category, CommandError, EngineStatus, Settings } from "../types";
 

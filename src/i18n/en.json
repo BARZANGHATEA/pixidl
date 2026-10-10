@@ -445,5 +445,20 @@
       "ffmpeg": "FFmpeg",
       "yt-dlp": "yt-dlp"
     }
+  },
+  "native": {
+    "show": "Show",
+    "pauseAll": "Pause All",
+    "resumeAll": "Resume All",
+    "openDir": "Open Downloads Folder",
+    "settings": "Settings",
+    "exit": "Exit",
+    "active": "Active: {{n}}",
+    "speed": "Speed: {{speed}}",
+    "downloadCompleted": "Download completed",
+    "torrentCompleted": "Torrent completed",
+    "downloadFailed": "Download failed",
+    "queueFinished": "All downloads finished",
+    "queueFinishedBody": "The download queue is empty."
   }
 }
