@@ -574,3 +574,38 @@ pub fn set_native_labels(labels: crate::labels::NativeLabels) {
     crate::labels::set(labels);
     crate::tray::relabel();
 }
+
+// ---------------------------------------------------------------- app updates (see updates.rs)
+
+#[tauri::command]
+pub fn get_update_status(app: AppHandle) -> crate::updates::UpdateStatus {
+    crate::updates::status(&app)
+}
+
+#[tauri::command]
+pub async fn check_for_updates(app: AppHandle) -> CmdResult<crate::updates::UpdateStatus> {
+    crate::updates::check(&app).await?;
+    Ok(crate::updates::status(&app))
+}
+
+/// Resolves once the installer is downloaded and verified; progress arrives
+/// on the `pixidl://update` channel.
+#[tauri::command]
+pub async fn download_update(app: AppHandle) -> CmdResult<()> {
+    crate::updates::download(&app).await
+}
+
+#[tauri::command]
+pub fn cancel_update_download(app: AppHandle) -> bool {
+    crate::updates::cancel_download(&app)
+}
+
+#[tauri::command]
+pub fn install_update(app: AppHandle) -> CmdResult<()> {
+    crate::updates::install(&app)
+}
+
+#[tauri::command]
+pub fn open_project_page(app: AppHandle, url: Option<String>) -> CmdResult<()> {
+    crate::updates::open_page(&app, url)
+}

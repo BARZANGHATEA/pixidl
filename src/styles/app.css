@@ -478,3 +478,25 @@ textarea.url-input { height: auto; min-height: 38px; padding: 9px 12px; resize: 
 .selbar.active .selbar-all { color: var(--accent); font-weight: 600; }
 .selbar-all input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .selbar .btn.danger-text { color: var(--danger); }
+
+/* ------------------------------------------------------------------ updates */
+.nav-dot { margin-inline-start: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); flex: none; }
+.upd-wrap { gap: 14px; }
+.upd-card { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.upd-card[data-tone="success"] { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); }
+.upd-card[data-tone="danger"] { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+.upd-icon { width: 36px; height: 36px; flex: none; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.upd-card[data-tone="success"] .upd-icon { background: var(--success-soft); color: var(--success); }
+.upd-card[data-tone="danger"] .upd-icon { background: var(--danger-soft); color: var(--danger); }
+.upd-icon svg { width: 20px; height: 20px; }
+.upd-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.upd-body p { margin: 0; overflow-wrap: anywhere; }
+.upd-title { font-weight: 650; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.upd-tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+.upd-subtitle { font-size: 13px; font-weight: 650; margin: 6px 0 0; }
+.upd-notes { max-height: 280px; overflow: auto; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-2); font-size: 12.5px; user-select: text; overflow-wrap: anywhere; }
+.upd-notes h3 { font-size: 13px; margin: 8px 0 4px; }
+.upd-notes h3:first-child { margin-top: 0; }
+.upd-notes p { margin: 4px 0; }
+.upd-notes ul { margin: 4px 0; padding-inline-start: 20px; }
+.upd-blocker { font-size: 12.5px; padding: 8px 12px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--warning) 12%, transparent); }

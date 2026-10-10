@@ -5,6 +5,7 @@ import { useDownloads } from "../stores/downloads";
 import { useQueues } from "../stores/queues";
 import { useUi } from "../stores/ui";
 import { useToolSetup } from "../stores/toolSetup";
+import { useUpdates } from "../stores/updates";
 import { api } from "../services/api";
 import { hostOf } from "../lib/format";
 
@@ -16,6 +17,7 @@ export function useBackend() {
     let cancelled = false;
     void useDownloads.getState().load();
     void useQueues.getState().load();
+    void useUpdates.getState().load();
     subscribe({
       onManagerEvent: (e) => {
         useDownloads.getState().applyEvent(e);
@@ -47,11 +49,20 @@ export function useBackend() {
           action: { label: t("add.download"), run: () => useUi.getState().openAdd(url, engine) },
         }),
       onNavigate: (view) => {
-        if (view === "settings" || view === "about" || view === "history" || view === "downloads" || view === "extensions") useUi.getState().setView(view);
+        if (view === "settings" || view === "about" || view === "history" || view === "downloads" || view === "extensions" || view === "updates") useUi.getState().setView(view);
       },
       onError: (e) => useUi.getState().toastError(t("toast.error"), e),
       onPowerCountdown: (p) => useUi.getState().setPower(p),
       onPowerCancelled: () => useUi.getState().setPower(null),
+      onUpdateEvent: (e) => {
+        useUpdates.getState().applyEvent(e);
+        if (e.type === "available" && e.info.latest)
+          useUi.getState().toast({
+            tone: "info",
+            title: t("toast.updateAvailable", { version: e.info.latest.version }),
+            action: { label: t("updates.view"), run: () => useUi.getState().setView("updates") },
+          });
+      },
     })
       .then((u) => {
         if (cancelled) u();

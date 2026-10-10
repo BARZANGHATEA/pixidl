@@ -21,6 +21,7 @@ import type {
   Settings,
   TorrentFilePreview,
   UrlInspection,
+  UpdateStatus,
 } from "../types";
 
 export function isCommandError(e: unknown): e is CommandError {
@@ -103,6 +104,14 @@ export const api = {
   installFfmpeg: () => call<string>("install_ffmpeg"),
   setNativeLabels: (labels: Record<string, string>) => call<void>("set_native_labels", { labels }),
   probeLinks: (urls: string[]) => call<LinkProbe[]>("probe_links", { urls }),
+  // app updates (src-tauri/src/updates.rs)
+  getUpdateStatus: () => call<UpdateStatus>("get_update_status"),
+  checkForUpdates: () => call<UpdateStatus>("check_for_updates"),
+  downloadUpdate: () => call<void>("download_update"),
+  cancelUpdateDownload: () => call<boolean>("cancel_update_download"),
+  installUpdate: () => call<void>("install_update"),
+  /** Opens a page of the project on GitHub (only github.com/BARZANGHATEA/pixidl/…). */
+  openProjectPage: (url?: string | null) => call<void>("open_project_page", { url: url ?? null }),
 };
 
 export type Api = typeof api;

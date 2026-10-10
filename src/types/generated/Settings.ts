@@ -46,4 +46,12 @@ videoCookiesBrowser: string, torrentListenPort: number, torrentEnableDht: boolea
 /**
  * Keep seeding after a torrent completes.
  */
-torrentSeedAfterCompletion: boolean, schedule: ScheduleSettings, };
+torrentSeedAfterCompletion: boolean, schedule: ScheduleSettings, 
+/**
+ * Check the project's GitHub releases for a newer version once a day.
+ */
+autoCheckUpdates: boolean, 
+/**
+ * Offer pre-releases (beta / rc builds) as updates.
+ */
+includePrereleases: boolean, };

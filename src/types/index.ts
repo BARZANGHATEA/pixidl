@@ -89,6 +89,26 @@ export interface PreparedExtension {
   extensionsPage: string;
 }
 
+// ---------------------------------------------------------------- app updates
+export type { InstallBlocker } from "./generated/InstallBlocker";
+export type { ReleaseInfo } from "./generated/ReleaseInfo";
+export type { UpdateAsset } from "./generated/UpdateAsset";
+export type { UpdateEvent } from "./generated/UpdateEvent";
+export type { UpdateInfo } from "./generated/UpdateInfo";
+
+/** src-tauri/src/updates.rs `UpdateStatus`. */
+export interface UpdateStatus {
+  currentVersion: string;
+  info: import("./generated/UpdateInfo").UpdateInfo | null;
+  lastChecked: string | null;
+  downloading: boolean;
+  readyVersion: string | null;
+  /** The installer can be run from inside the app (Windows). */
+  canInstall: boolean;
+  repoUrl: string;
+  releasesUrl: string;
+}
+
 export interface AppInfo {
   name: string;
   version: string;

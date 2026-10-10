@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Download, History, Info, LayoutList, ListOrdered, Magnet, MoreHorizontal, PauseCircle, PlayCircle, Plus, Puzzle, Settings, XCircle } from "lucide-react";
+import { CheckCircle2, CircleArrowUp, Download, History, Info, LayoutList, ListOrdered, Magnet, MoreHorizontal, PauseCircle, PlayCircle, Plus, Puzzle, Settings, XCircle } from "lucide-react";
 import { useUi } from "../stores/ui";
 import { useDownloads } from "../stores/downloads";
 import { queueName, useQueues } from "../stores/queues";
+import { selectUpdateAvailable, useUpdates } from "../stores/updates";
 import { countDownloads, type StatusFilter } from "../lib/filters";
 import { useEffect, useMemo, useState } from "react";
 import { Menu } from "./Menu";
@@ -13,6 +14,7 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { view, scope, status, setScope, setStatus, setView } = useUi();
   const byId = useDownloads((s) => s.byId);
+  const updateAvailable = useUpdates(selectUpdateAvailable);
   const counts = useMemo(() => countDownloads(Object.values(byId)), [byId]);
   const onDownloads = view === "downloads";
   const isAllScope = scope.kind === "all";
@@ -169,6 +171,11 @@ export function Sidebar() {
         <button className="nav-item" aria-current={view === "settings"} onClick={() => setView("settings")}>
           <Settings aria-hidden="true" />
           <span>{t("nav.settings")}</span>
+        </button>
+        <button className="nav-item" aria-current={view === "updates"} onClick={() => setView("updates")}>
+          <CircleArrowUp aria-hidden="true" />
+          <span>{t("nav.updates")}</span>
+          {updateAvailable && <span className="nav-dot" role="status" aria-label={t("updates.badge")} title={t("updates.badge")} />}
         </button>
         <button className="nav-item" aria-current={view === "about"} onClick={() => setView("about")}>
           <Info aria-hidden="true" />

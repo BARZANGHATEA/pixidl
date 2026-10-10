@@ -43,6 +43,12 @@ pub const USER_AGENT: &str = concat!(
 /// Transparent decompression is disabled on purpose: byte ranges and sizes
 /// must refer to the bytes on the wire.
 pub fn build_client(s: &Settings) -> Result<reqwest::Client> {
+    client_builder(s)?.build().map_err(|e| DownloadError::new(ErrorKind::Unknown, "Cannot create HTTP client").with_detail(e.to_string()))
+}
+
+/// The builder behind [`build_client`], for callers that need to adjust it
+/// (the app updater's redirect policy) while keeping the proxy settings.
+pub fn client_builder(s: &Settings) -> Result<reqwest::ClientBuilder> {
     let mut b = reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .connect_timeout(Duration::from_secs(s.connect_timeout_secs as u64))
@@ -59,7 +65,7 @@ pub fn build_client(s: &Settings) -> Result<reqwest::Client> {
             b = b.proxy(p);
         }
     }
-    b.build().map_err(|e| DownloadError::new(ErrorKind::Unknown, "Cannot create HTTP client").with_detail(e.to_string()))
+    Ok(b)
 }
 
 pub struct HttpEngine;

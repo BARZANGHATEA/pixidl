@@ -17,7 +17,8 @@
     "settings": "Settings",
     "about": "About",
     "categories": "Categories",
-    "extensions": "Browser extension"
+    "extensions": "Browser extension",
+    "updates": "Updates"
   },
   "titlebar": {
     "addPlaceholder": "Add download or paste URL…",
@@ -264,7 +265,8 @@
     "copied": "URL copied",
     "error": "Something went wrong",
     "settingsSaved": "Settings saved",
-    "settingsProblem": "Some settings were corrected"
+    "settingsProblem": "Some settings were corrected",
+    "updateAvailable": "pixidl {{version}} is available"
   },
   "power": {
     "shutdown": "The computer will shut down in {{seconds}} s because the download queue finished.",
@@ -418,9 +420,63 @@
     "openLogs": "Open logs folder",
     "updates": "Updates",
     "checkUpdates": "Check for updates",
-    "updatesNote": "Automatic updates are not enabled in this build. New versions are published as signed installers on the project's releases page.",
+    "updatesNote": "New versions are published on the project's GitHub releases page. pixidl can check for them, download the installer, verify its checksum and install it for you.",
+    "openUpdates": "Open Updates",
+    "repository": "GitHub repository",
     "dataFolder": "Data folder",
     "privacy": "pixidl does not collect analytics and never sends your data anywhere."
+  },
+  "updates": {
+    "title": "Updates",
+    "current": "Installed version {{version}}",
+    "check": "Check for updates",
+    "checking": "Checking for updates…",
+    "lastChecked": "Last checked {{time}}",
+    "neverChecked": "Not checked yet",
+    "upToDate": "pixidl is up to date",
+    "upToDateBody": "The newest published version is {{version}}.",
+    "noReleases": "No releases have been published yet",
+    "noReleasesBody": "New versions will appear on the project's GitHub releases page.",
+    "available": "pixidl {{version}} is available",
+    "badge": "Update available",
+    "view": "View",
+    "prerelease": "Pre-release",
+    "published": "Published {{date}}",
+    "size": "Installer {{size}}",
+    "notes": "Release notes",
+    "noNotes": "No release notes.",
+    "downloadInstall": "Download and install",
+    "downloading": "Downloading pixidl {{version}}…",
+    "downloadProgress": "Update download progress",
+    "progress": "{{done}} of {{total}} · {{speed}}",
+    "progressUnknown": "{{done}} · {{speed}}",
+    "cancel": "Cancel",
+    "verifying": "Verifying the download…",
+    "verifyingBody": "Comparing the file with the SHA-256 checksum published with the release.",
+    "ready": "pixidl {{version}} is ready to install",
+    "readyBody": "The download was verified. pixidl will close, install version {{version}} and start again. Running downloads are paused and continue afterwards.",
+    "installRestart": "Install and restart",
+    "installing": "Starting the installer…",
+    "retry": "Try again",
+    "openReleases": "Open releases page",
+    "viewRelease": "View on GitHub",
+    "repository": "GitHub repository",
+    "preferences": "Preferences",
+    "autoCheck": "Check for updates automatically",
+    "autoCheckDesc": "Looks for a new version on GitHub once a day.",
+    "prereleases": "Include pre-releases",
+    "prereleasesDesc": "Also offer beta and release-candidate versions.",
+    "privacy": "Checking for updates only contacts github.com. Installers are used only when their SHA-256 checksum matches the one published with the release.",
+    "error": {
+      "check": "Could not check for updates",
+      "download": "Could not download the update",
+      "install": "Could not install the update"
+    },
+    "blocked": {
+      "unsupported_platform": "Automatic installation is available on Windows only. Download the new version from the release page.",
+      "no_installer": "This release has no Windows installer. See the release page for details.",
+      "no_checksum": "This release has no published checksum, so pixidl can't verify and install it automatically. See the release page."
+    }
   },
   "firstRun": {
     "welcome": "Welcome to pixidl",
