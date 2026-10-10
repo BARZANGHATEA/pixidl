@@ -4,6 +4,7 @@ import { CheckCircle2, Folder, Plus, RefreshCw, Trash2, XCircle } from "lucide-r
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
+import { useToolSetup } from "../stores/toolSetup";
 import { api } from "../services/api";
 import { Switch } from "../components/Switch";
 import { applyLanguage, LANGUAGES } from "../i18n";
@@ -388,20 +389,23 @@ function EnginesSection({ settings, set }: { settings: Settings; set: (p: Partia
   const toastError = useUi((s) => s.toastError);
   const toast = useUi((s) => s.toast);
   const [status, setStatus] = useState<EngineStatus | null>(null);
-  const [busy, setBusy] = useState<"install" | "update" | "deno" | null>(null);
+  const [busy, setBusy] = useState<"install" | "update" | "deno" | "ffmpeg" | null>(null);
+  const settingUp = useToolSetup((x) => x.current);
+  const isWindows = navigator.userAgent.includes("Windows");
   const refresh = () => api.getEngineStatus().then(setStatus).catch(() => {});
   useEffect(() => {
     void refresh();
-  }, [settings.ytdlpPath, settings.ffmpegPath, settings.jsRuntimePath]);
+  }, [settings.ytdlpPath, settings.ffmpegPath, settings.jsRuntimePath, settingUp === null]);
 
-  const runTool = async (kind: "install" | "update" | "deno") => {
+  const runTool = async (kind: "install" | "update" | "deno" | "ffmpeg") => {
     setBusy(kind);
+    const title = kind === "deno" ? "Deno" : kind === "ffmpeg" ? "FFmpeg" : "yt-dlp";
     try {
-      const out = kind === "install" ? await api.installYtdlp() : kind === "deno" ? await api.installDeno() : await api.updateYtdlp();
-      toast({ tone: "success", title: kind === "deno" ? "Deno" : "yt-dlp", body: out.split("\n").slice(-2).join(" ") });
+      const out = kind === "install" ? await api.installYtdlp() : kind === "deno" ? await api.installDeno() : kind === "ffmpeg" ? await api.installFfmpeg() : await api.updateYtdlp();
+      toast({ tone: "success", title, body: out.split("\n").slice(-2).join(" ") });
       await refresh();
     } catch (e) {
-      toastError("yt-dlp", e as CommandError);
+      toastError(title, e as CommandError);
     } finally {
       setBusy(null);
     }
@@ -451,9 +455,28 @@ function EnginesSection({ settings, set }: { settings: Settings; set: (p: Partia
           <span className="muted">{status ? (status.ffmpeg.available ? `${t("settings.version")} ${status.ffmpeg.version}` : t("settings.unavailable")) : "…"}</span>
         </div>
         {status?.ffmpeg.path && <div className="hint mono">{status.ffmpeg.path}</div>}
-        <CommitInput width={360} label={t("settings.customPath")} placeholder={t("settings.customPath")} value={settings.ffmpegPath} onCommit={(v) => set({ ffmpegPath: v.trim() })} />
-        {!status?.ffmpeg.available && <div className="hint">{t("settings.ffmpegHint")}</div>}
+        <div className="row">
+          <CommitInput width={360} label={t("settings.customPath")} placeholder={t("settings.customPath")} value={settings.ffmpegPath} onCommit={(v) => set({ ffmpegPath: v.trim() })} />
+          {!status?.ffmpeg.available && isWindows && (
+            <button className="btn sm primary" disabled={!!busy || !!settingUp} onClick={() => runTool("ffmpeg")}>{busy === "ffmpeg" ? t("settings.installing") : t("settings.installFfmpeg")}</button>
+          )}
+        </div>
+        {!status?.ffmpeg.available && <div className="hint">{isWindows ? t("settings.ffmpegHintWindows") : t("settings.ffmpegHint")}</div>}
       </div>
+      <Row title={t("settings.videoAutoSetup")} desc={t("settings.videoAutoSetupDesc")}>
+        <Switch label={t("settings.videoAutoSetup")} checked={settings.videoAutoSetup} onChange={(v) => set({ videoAutoSetup: v })} />
+      </Row>
+      <Row title={t("settings.ytdlpAutoUpdate")} desc={t("settings.ytdlpAutoUpdateDesc")}>
+        <Switch label={t("settings.ytdlpAutoUpdate")} checked={settings.ytdlpAutoUpdate} onChange={(v) => set({ ytdlpAutoUpdate: v })} />
+      </Row>
+      <Row title={t("settings.cookiesBrowser")} desc={t("settings.cookiesBrowserDesc")}>
+        <select className="select" style={{ width: 200 }} aria-label={t("settings.cookiesBrowser")} value={settings.videoCookiesBrowser} onChange={(e) => set({ videoCookiesBrowser: e.target.value })}>
+          <option value="">{t("settings.cookiesNone")}</option>
+          {["firefox", "chrome", "edge", "brave", "chromium", "opera", "vivaldi"].map((b) => (
+            <option key={b} value={b}>{b[0].toUpperCase() + b.slice(1)}</option>
+          ))}
+        </select>
+      </Row>
       <div className="engine-card" style={{ marginTop: 10 }}>
         <div className="status-line">
           <StatusIcon ok={true} />

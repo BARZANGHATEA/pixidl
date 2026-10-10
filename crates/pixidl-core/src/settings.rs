@@ -132,6 +132,15 @@ pub struct Settings {
     pub ffmpeg_path: String,
     /// JavaScript runtime for yt-dlp's YouTube support (Deno/Node/Bun); empty = auto.
     pub js_runtime_path: String,
+    /// Download Deno (and FFmpeg on Windows) automatically the first time a
+    /// video needs them.
+    pub video_auto_setup: bool,
+    /// Keep yt-dlp current: check the official release once a day and install
+    /// a newer build into the engines folder.
+    pub ytdlp_auto_update: bool,
+    /// Browser whose cookies yt-dlp may read (`--cookies-from-browser`), for
+    /// sites that require a signed-in session; empty = none.
+    pub video_cookies_browser: String,
     pub torrent_listen_port: u16,
     pub torrent_enable_dht: bool,
     /// Keep seeding after a torrent completes.
@@ -178,6 +187,9 @@ impl Default for Settings {
             ytdlp_path: String::new(),
             ffmpeg_path: String::new(),
             js_runtime_path: String::new(),
+            video_auto_setup: true,
+            ytdlp_auto_update: true,
+            video_cookies_browser: String::new(),
             torrent_listen_port: 0,
             torrent_enable_dht: true,
             torrent_seed_after_completion: false,
@@ -185,6 +197,9 @@ impl Default for Settings {
         }
     }
 }
+
+/// Browsers yt-dlp can read cookies from (`""` = don't use cookies).
+pub const COOKIE_BROWSERS: [&str; 8] = ["", "firefox", "chrome", "edge", "brave", "chromium", "opera", "vivaldi"];
 
 pub fn default_download_dir() -> String {
     directories::UserDirs::new()
@@ -226,6 +241,9 @@ impl Settings {
         }
         if matches!(self.global_upload_limit_bps, Some(0)) {
             self.global_upload_limit_bps = None;
+        }
+        if !COOKIE_BROWSERS.contains(&self.video_cookies_browser.as_str()) {
+            self.video_cookies_browser.clear();
         }
         if !["en", "fa"].contains(&self.language.as_str()) {
             self.language = "en".into();

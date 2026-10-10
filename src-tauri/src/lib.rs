@@ -189,6 +189,14 @@ pub fn run() {
             clipboard::spawn(handle.clone());
             let h = handle.clone();
             tauri::async_runtime::spawn(async move { apply_browser_integration(&h).await });
+            // YouTube changes often; keep yt-dlp current in the background (daily).
+            let h = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+                if let Err(e) = h.state::<AppState>().mgr.auto_update_ytdlp(false).await {
+                    tracing::warn!(error = %e, "yt-dlp update check failed");
+                }
+            });
 
             if let Some(w) = app.get_webview_window("main") {
                 fit_to_screen(&w);
@@ -264,6 +272,7 @@ pub fn run() {
             commands::open_browser_extensions_page,
             commands::reveal_path,
             commands::install_deno,
+            commands::install_ffmpeg,
             commands::probe_links,
         ])
         .build(tauri::generate_context!())

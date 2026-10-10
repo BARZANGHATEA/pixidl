@@ -341,7 +341,16 @@
     "jsRuntime": "JavaScript runtime (YouTube)",
     "installDeno": "Install Deno",
     "jsRuntimeOk": "yt-dlp uses it to read YouTube's player; nothing else runs with it.",
-    "jsRuntimeHint": "YouTube needs a JavaScript runtime for yt-dlp. Install Deno (official release, SHA-256 verified) or point to Node.js / Bun."
+    "jsRuntimeHint": "YouTube needs a JavaScript runtime for yt-dlp. Install Deno (official release, SHA-256 verified) or point to Node.js / Bun.",
+    "installFfmpeg": "Install FFmpeg",
+    "ffmpegHintWindows": "Needed for the best YouTube quality (separate video and audio) and for audio-only downloads. pixidl downloads it automatically (about 90 MB) the first time you download a video.",
+    "videoAutoSetup": "Set up video tools automatically",
+    "videoAutoSetupDesc": "Download Deno and FFmpeg from their official releases (checksum-verified) the first time a video needs them.",
+    "ytdlpAutoUpdate": "Keep yt-dlp up to date",
+    "ytdlpAutoUpdateDesc": "YouTube changes often. Check for a new yt-dlp once a day and install it.",
+    "cookiesBrowser": "Use cookies from browser",
+    "cookiesBrowserDesc": "For videos that need a signed-in account, or when YouTube asks to confirm you're not a bot. Firefox works best; Chrome and Edge must be closed.",
+    "cookiesNone": "Don't use cookies"
   },
   "days": {
     "0": "Mon",
@@ -425,5 +434,16 @@
     "firefoxNote": "Regular Firefox only keeps temporary add-ons until it restarts; a permanent install needs the add-on signed by Mozilla (addons.mozilla.org). Firefox Developer Edition and Nightly can install the .xpi file directly after setting xpinstall.signatures.required to false in about:config.",
     "stepPin": "Done! Pin the pixidl icon in the toolbar. The status here turns green as soon as the extension connects.",
     "done": "Done"
+  },
+  "toolSetup": {
+    "downloading": "Setting up video downloads: downloading {{tool}}…",
+    "progress": "Download progress",
+    "installed": "{{tool}} is installed",
+    "failed": "Could not install {{tool}}",
+    "tool": {
+      "deno": "Deno (JavaScript runtime)",
+      "ffmpeg": "FFmpeg",
+      "yt-dlp": "yt-dlp"
+    }
   }
 }

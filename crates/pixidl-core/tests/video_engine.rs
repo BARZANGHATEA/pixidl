@@ -107,7 +107,8 @@ async fn ytdlp_errors_are_reported() {
 async fn missing_extractor_is_reported_as_engine_unavailable() {
     let tools = pixidl_core::tools::ToolLocator::without_system_path(vec![]);
     let engine = pixidl_core::engines::video::VideoEngine::new(std::sync::Arc::new(tools));
-    let r = engine.inspect("https://example.com/v", "/definitely/not/here", "").await;
+    let settings = pixidl_core::settings::Settings { ytdlp_path: "/definitely/not/here".into(), ..Default::default() };
+    let r = engine.inspect("https://example.com/v", &settings).await;
     assert_eq!(r.unwrap_err().kind, ErrorKind::EngineUnavailable);
 }
 

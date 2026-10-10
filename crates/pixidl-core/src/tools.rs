@@ -79,9 +79,11 @@ impl ToolLocator {
         }
         let name = exe_name(base);
         for d in &self.search_dirs {
-            let p = d.join(&name);
-            if is_executable(&p) {
-                return Some(p);
+            // Also `<dir>/<tool>/<tool>.exe`: bundles with libraries (FFmpeg) get their own folder.
+            for p in [d.join(&name), d.join(base).join(&name)] {
+                if is_executable(&p) {
+                    return Some(p);
+                }
             }
         }
         if self.skip_system_path {
@@ -379,5 +381,197 @@ mod zip_tests {
         assert_eq!(std::fs::read(p).unwrap(), b"binary");
         assert!(!d.path().parent().unwrap().join("evil").exists());
         assert!(super::extract_exe_from_zip(buf.get_ref(), "missing", d.path()).is_err());
+    }
+}
+
+/// Progress of an automatic tool download (bytes so far, total if known).
+pub type InstallProgress<'a> = &'a (dyn Fn(u64, Option<u64>) + Send + Sync);
+
+/// Streams `url` into `dest`, hashing as it goes; the file is removed unless
+/// its SHA-256 equals `expected`.
+async fn download_verified(client: &reqwest::Client, url: &str, expected: &str, dest: &Path, progress: InstallProgress<'_>) -> crate::Result<()> {
+    use crate::error::DownloadError;
+    use crate::types::ErrorKind;
+    use futures::StreamExt;
+    use sha2::{Digest, Sha256};
+    use tokio::io::AsyncWriteExt;
+    let r = client.get(url).send().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+    if !r.status().is_success() {
+        return Err(DownloadError::from_status(r.status().as_u16()));
+    }
+    let total = r.content_length();
+    let mut file = tokio::fs::File::create(dest).await.map_err(|e| DownloadError::fs("Cannot write download", &e))?;
+    let mut hasher = Sha256::new();
+    let mut done = 0u64;
+    let mut last = std::time::Instant::now();
+    let mut stream = r.bytes_stream();
+    let result = async {
+        while let Some(chunk) = tokio::time::timeout(Duration::from_secs(60), stream.next()).await.map_err(|_| DownloadError::new(ErrorKind::Timeout, "Download stalled"))? {
+            let chunk = chunk.map_err(|e| DownloadError::from_reqwest(&e))?;
+            hasher.update(&chunk);
+            file.write_all(&chunk).await.map_err(|e| DownloadError::fs("Cannot write download", &e))?;
+            done += chunk.len() as u64;
+            if last.elapsed() >= Duration::from_millis(250) {
+                last = std::time::Instant::now();
+                progress(done, total);
+            }
+        }
+        file.flush().await.map_err(|e| DownloadError::fs("Cannot write download", &e))?;
+        progress(done, total);
+        let actual = hex::encode(hasher.finalize());
+        if actual != expected {
+            return Err(DownloadError::new(ErrorKind::EngineUnavailable, "Downloaded file failed checksum verification").with_detail(format!("expected {expected}, got {actual}")));
+        }
+        Ok(())
+    }
+    .await;
+    if result.is_err() {
+        drop(file);
+        let _ = tokio::fs::remove_file(dest).await;
+    }
+    result
+}
+
+/// FFmpeg build published by the yt-dlp project (GPL, with the patches yt-dlp
+/// relies on). The "shared" build keeps the download at ~90 MB instead of 200.
+pub fn ffmpeg_asset_name() -> Option<&'static str> {
+    if cfg!(all(windows, target_arch = "x86_64")) {
+        Some("ffmpeg-master-latest-win64-gpl-shared.zip")
+    } else {
+        None
+    }
+}
+
+pub const FFMPEG_RELEASE_BASE: &str = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest";
+
+/// Copies `bin/ffmpeg.exe`, `bin/ffprobe.exe` and the `bin/*.dll` libraries
+/// out of an FFmpeg-Builds zip into `dest_dir` (flat; never outside it).
+pub fn extract_ffmpeg_bundle(zip_path: &Path, dest_dir: &Path) -> crate::Result<PathBuf> {
+    use crate::error::DownloadError;
+    use crate::types::ErrorKind;
+    let bad = |e: String| DownloadError::new(ErrorKind::EngineUnavailable, "Invalid FFmpeg archive").with_detail(e);
+    let f = std::fs::File::open(zip_path).map_err(|e| DownloadError::fs("Cannot open archive", &e))?;
+    let mut zip = zip::ZipArchive::new(f).map_err(|e| bad(e.to_string()))?;
+    std::fs::create_dir_all(dest_dir).map_err(|e| DownloadError::fs("Cannot create engines folder", &e))?;
+    let mut found_ffmpeg = false;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i).map_err(|e| bad(e.to_string()))?;
+        if entry.is_dir() {
+            continue;
+        }
+        let Some(path) = entry.enclosed_name() else { continue };
+        let parent = path.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().to_ascii_lowercase());
+        let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) else { continue };
+        let lower = name.to_ascii_lowercase();
+        let wanted = parent.as_deref() == Some("bin") && (lower == "ffmpeg.exe" || lower == "ffprobe.exe" || lower.ends_with(".dll"));
+        if !wanted {
+            continue;
+        }
+        let mut out = std::fs::File::create(dest_dir.join(&name)).map_err(|e| DownloadError::fs("Cannot write FFmpeg", &e))?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| DownloadError::fs("Cannot write FFmpeg", &e))?;
+        found_ffmpeg |= lower == "ffmpeg.exe";
+    }
+    if !found_ffmpeg {
+        return Err(bad("bin/ffmpeg.exe not found".into()));
+    }
+    Ok(dest_dir.join("ffmpeg.exe"))
+}
+
+/// Installs FFmpeg (checksum-verified) into `dest_dir`, replacing an older copy.
+pub async fn install_ffmpeg(client: &reqwest::Client, dest_dir: &Path, progress: InstallProgress<'_>) -> crate::Result<PathBuf> {
+    use crate::error::DownloadError;
+    use crate::types::ErrorKind;
+    let asset = ffmpeg_asset_name().ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "Automatic FFmpeg setup is only available on Windows").with_detail("Install FFmpeg with your package manager."))?;
+    let sums = client.get(format!("{FFMPEG_RELEASE_BASE}/checksums.sha256")).send().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+    if !sums.status().is_success() {
+        return Err(DownloadError::from_status(sums.status().as_u16()));
+    }
+    let sums = sums.text().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+    let expected = checksum_for(&sums, asset).ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "Release checksum not found"))?;
+    let parent = dest_dir.parent().unwrap_or(dest_dir).to_path_buf();
+    tokio::fs::create_dir_all(&parent).await.map_err(|e| DownloadError::fs("Cannot create engines folder", &e))?;
+    let archive = parent.join(format!("{asset}.download"));
+    download_verified(client, &format!("{FFMPEG_RELEASE_BASE}/{asset}"), &expected, &archive, progress).await?;
+    let staging = parent.join("ffmpeg.new");
+    let _ = tokio::fs::remove_dir_all(&staging).await;
+    let (a, s) = (archive.clone(), staging.clone());
+    let extracted = tokio::task::spawn_blocking(move || extract_ffmpeg_bundle(&a, &s)).await.map_err(|e| DownloadError::new(ErrorKind::Unknown, "FFmpeg setup crashed").with_detail(e.to_string()))?;
+    let _ = tokio::fs::remove_file(&archive).await;
+    extracted?;
+    let _ = tokio::fs::remove_dir_all(dest_dir).await;
+    tokio::fs::rename(&staging, dest_dir).await.map_err(|e| DownloadError::fs("Cannot install FFmpeg", &e))?;
+    let exe = dest_dir.join("ffmpeg.exe");
+    tracing::info!(path = %exe.display(), "installed FFmpeg from yt-dlp/FFmpeg-Builds");
+    Ok(exe)
+}
+
+/// Whether the yt-dlp binary at `local` differs from the latest official
+/// release (compares its SHA-256 with the published SHA2-256SUMS).
+pub async fn ytdlp_is_outdated(client: &reqwest::Client, local: &Path) -> crate::Result<bool> {
+    use crate::error::DownloadError;
+    use crate::types::ErrorKind;
+    use sha2::{Digest, Sha256};
+    let asset = ytdlp_asset_name().ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "No official yt-dlp build for this platform"))?;
+    let r = client.get(format!("{YTDLP_RELEASE_BASE}/SHA2-256SUMS")).send().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+    if !r.status().is_success() {
+        return Err(DownloadError::from_status(r.status().as_u16()));
+    }
+    let sums = r.text().await.map_err(|e| DownloadError::from_reqwest(&e))?;
+    let expected = checksum_for(&sums, asset).ok_or_else(|| DownloadError::new(ErrorKind::EngineUnavailable, "Release checksum not found"))?;
+    let local = local.to_path_buf();
+    let actual = tokio::task::spawn_blocking(move || std::fs::read(&local).map(|b| hex::encode(Sha256::digest(&b))))
+        .await
+        .map_err(|e| DownloadError::new(ErrorKind::Unknown, "Hashing failed").with_detail(e.to_string()))?
+        .map_err(|e| DownloadError::fs("Cannot read yt-dlp", &e))?;
+    Ok(actual != expected)
+}
+
+#[cfg(test)]
+mod ffmpeg_tests {
+    use std::io::Write;
+
+    #[test]
+    fn extracts_binaries_and_libraries_only() {
+        let d = tempfile::tempdir().unwrap();
+        let zip_path = d.path().join("ff.zip");
+        {
+            let mut w = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+            let o = zip::write::SimpleFileOptions::default();
+            for (name, body) in [
+                ("ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe", "ff"),
+                ("ffmpeg-master-latest-win64-gpl-shared/bin/ffprobe.exe", "fp"),
+                ("ffmpeg-master-latest-win64-gpl-shared/bin/avcodec-62.dll", "dll"),
+                ("ffmpeg-master-latest-win64-gpl-shared/bin/ffplay.exe", "no"),
+                ("ffmpeg-master-latest-win64-gpl-shared/doc/readme.txt", "no"),
+                ("../bin/evil.dll", "no"),
+            ] {
+                w.start_file(name, o).unwrap();
+                w.write_all(body.as_bytes()).unwrap();
+            }
+            w.finish().unwrap();
+        }
+        let out = d.path().join("ffmpeg");
+        let exe = super::extract_ffmpeg_bundle(&zip_path, &out).unwrap();
+        assert_eq!(std::fs::read(exe).unwrap(), b"ff");
+        let mut names: Vec<_> = std::fs::read_dir(&out).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
+        names.sort();
+        assert_eq!(names, ["avcodec-62.dll", "ffmpeg.exe", "ffprobe.exe"]);
+        assert!(!d.path().join("bin").exists());
+    }
+
+    #[test]
+    fn locator_finds_tools_in_their_own_folder() {
+        let d = tempfile::tempdir().unwrap();
+        let sub = d.path().join("ffmpeg");
+        std::fs::create_dir_all(&sub).unwrap();
+        let exe = sub.join(super::exe_name("ffmpeg"));
+        std::fs::write(&exe, "x").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let loc = super::ToolLocator::without_system_path(vec![d.path().to_path_buf()]);
+        assert_eq!(loc.find("ffmpeg", ""), Some(exe));
     }
 }

@@ -153,6 +153,9 @@ pub fn test_settings(dir: &std::path::Path) -> Settings {
         connect_timeout_secs: 5,
         read_timeout_secs: 10,
         proxy_mode: pixidl_core::settings::ProxyMode::None,
+        // Tests must not download Deno/FFmpeg/yt-dlp from the internet.
+        video_auto_setup: false,
+        ytdlp_auto_update: false,
         ..Default::default()
     }
 }

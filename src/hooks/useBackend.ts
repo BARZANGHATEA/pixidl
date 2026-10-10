@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { subscribe } from "../services/events";
 import { useDownloads } from "../stores/downloads";
 import { useUi } from "../stores/ui";
+import { useToolSetup } from "../stores/toolSetup";
 import { api } from "../services/api";
 import { hostOf } from "../lib/format";
 
@@ -27,6 +28,13 @@ export function useBackend() {
           });
         if (e.type === "queue_finished") ui.toast({ tone: "info", title: t("toast.queueFinished") });
         if (e.type === "show_add_dialog") ui.openAdd(e.url);
+        if (e.type === "tool_setup") {
+          const s = e.setup;
+          const name = t(`toolSetup.tool.${s.tool}`, { defaultValue: s.tool });
+          useToolSetup.getState().set(s.phase === "downloading" ? s : null);
+          if (s.phase === "installed") ui.toast({ tone: "success", title: t("toolSetup.installed", { tool: name }) });
+          if (s.phase === "failed") ui.toast({ tone: "error", title: t("toolSetup.failed", { tool: name }), body: s.message ?? undefined });
+        }
       },
       onClipboardUrl: ({ url, engine }) =>
         useUi.getState().toast({

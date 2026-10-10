@@ -20,8 +20,9 @@ use ts_rs::TS;
 use super::{eta, Engine, EngineOutcome, EngineProgress, JobContext, MetaUpdate};
 use crate::error::{redact, DownloadError, Result};
 use crate::security;
-use crate::tools::{command, ToolLocator};
-use crate::types::{Download, EngineKind, ErrorKind};
+use crate::settings::{ProxyMode, Settings};
+use crate::tools::{self, command, ToolLocator};
+use crate::types::{Download, EngineKind, ErrorKind, ToolSetup, ToolSetupPhase};
 
 const PROGRESS_PREFIX: &str = "PIXIDLPROG|";
 const META_PREFIX: &str = "PIXIDLMETA|";
@@ -134,6 +135,72 @@ fn js_runtime_args(tools: &ToolLocator, configured: &str) -> Vec<String> {
     }
 }
 
+/// Proxy and cookie options shared by inspection and download, so a video
+/// that can be inspected can also be downloaded (and the other way round).
+pub fn network_args(settings: &Settings) -> Vec<String> {
+    let mut a = Vec::new();
+    match settings.proxy_mode {
+        ProxyMode::None => a.extend(["--proxy".to_string(), String::new()]),
+        ProxyMode::Manual if !settings.proxy_url.trim().is_empty() => a.extend(["--proxy".to_string(), settings.proxy_url.trim().to_string()]),
+        _ => {}
+    }
+    let browser = settings.video_cookies_browser.trim();
+    if !browser.is_empty() && crate::settings::COOKIE_BROWSERS.contains(&browser) {
+        a.extend(["--cookies-from-browser".to_string(), browser.to_string()]);
+    }
+    a
+}
+
+/// Serialises automatic tool setup so two videos never download Deno twice.
+static SETUP_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Makes sure yt-dlp has what it needs for sites like YouTube: a JavaScript
+/// runtime (Deno) and, on Windows, FFmpeg for merging the best video and audio
+/// streams. Missing pieces are downloaded from their official releases and
+/// checksum-verified. Failures are reported but never fail the download:
+/// yt-dlp still works for many sites without them.
+pub async fn ensure_tools(tools: &ToolLocator, client: &reqwest::Client, settings: &Settings, report: &(dyn Fn(ToolSetup) + Send + Sync)) {
+    if !settings.video_auto_setup {
+        return;
+    }
+    let _guard = SETUP_LOCK.lock().await;
+    let engines = crate::paths::engines_dir();
+    let event = |tool: &str, phase: ToolSetupPhase, downloaded: u64, total: Option<u64>, message: Option<String>| ToolSetup { tool: tool.into(), phase, downloaded, total, message };
+    if find_js_runtime(tools, &settings.js_runtime_path).is_none() && tools::deno_asset_name().is_some() {
+        report(event("deno", ToolSetupPhase::Downloading, 0, None, None));
+        match tools::install_deno(client, &engines).await {
+            Ok(_) => report(event("deno", ToolSetupPhase::Installed, 0, None, None)),
+            Err(e) => {
+                tracing::warn!(error = %e, "automatic Deno setup failed");
+                report(event("deno", ToolSetupPhase::Failed, 0, None, Some(e.message.clone())));
+            }
+        }
+    }
+    if tools.find("ffmpeg", &settings.ffmpeg_path).is_none() && tools::ffmpeg_asset_name().is_some() {
+        report(event("ffmpeg", ToolSetupPhase::Downloading, 0, None, None));
+        let progress = |done: u64, total: Option<u64>| report(event("ffmpeg", ToolSetupPhase::Downloading, done, total, None));
+        match tools::install_ffmpeg(client, &engines.join("ffmpeg"), &progress).await {
+            Ok(_) => report(event("ffmpeg", ToolSetupPhase::Installed, 0, None, None)),
+            Err(e) => {
+                tracing::warn!(error = %e, "automatic FFmpeg setup failed");
+                report(event("ffmpeg", ToolSetupPhase::Failed, 0, None, Some(e.message.clone())));
+            }
+        }
+    }
+}
+
+/// The chosen quality first, then fallbacks: formats offered at inspection
+/// time can disappear by the time the download starts (YouTube rotates them),
+/// and a missing format must not fail the whole download.
+pub fn format_selector(chosen: Option<&str>, ffmpeg: bool) -> String {
+    let fallback = if ffmpeg { "bv*+ba/b/best*" } else { "b/best*[acodec!=none]/best*" };
+    match chosen.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(c) if c.split('/').any(|alt| alt == fallback.split('/').next().unwrap_or("")) => c.to_string(),
+        Some(c) => format!("{c}/{fallback}"),
+        None => fallback.to_string(),
+    }
+}
+
 /// Entries of a flat playlist (`yt-dlp -J --flat-playlist`).
 pub fn parse_playlist(json: &serde_json::Value) -> Option<PlaylistInfo> {
     if json.get("_type").and_then(|t| t.as_str()) != Some("playlist") {
@@ -222,7 +289,14 @@ pub fn classify_ytdlp_error(stderr: &str) -> DownloadError {
         .unwrap_or("yt-dlp exited with an error")
         .trim();
     let lower = line.to_ascii_lowercase();
-    let (kind, msg) = if lower.contains("unsupported url") {
+    let all = stderr.to_ascii_lowercase();
+    let (kind, msg) = if lower.contains("not a bot") || lower.contains("confirm your age") {
+        (ErrorKind::ServerRejected, "YouTube asks to sign in. Choose a browser for cookies in Settings → Engines and stay signed in to YouTube there")
+    } else if all.contains("no supported javascript runtime") || all.contains("challenge solving failed") || all.contains("n challenge") || all.contains("signature extraction failed") || all.contains("js runtime") {
+        (ErrorKind::EngineUnavailable, "YouTube needs the JavaScript runtime (Deno) and an up-to-date yt-dlp. Check Settings → Engines")
+    } else if lower.contains("could not copy") && lower.contains("cookie") || lower.contains("failed to decrypt") && lower.contains("cookie") {
+        (ErrorKind::EngineUnavailable, "Could not read the browser's cookies. Close that browser, or choose Firefox, in Settings → Engines")
+    } else if lower.contains("unsupported url") {
         (ErrorKind::ExtractorFailed, "This site is not supported by the video extractor")
     } else if lower.contains("http error 404") || lower.contains("not found") || lower.contains("video unavailable") {
         (ErrorKind::NotFound, "The video is unavailable")
@@ -239,7 +313,10 @@ pub fn classify_ytdlp_error(stderr: &str) -> DownloadError {
     } else {
         (ErrorKind::ExtractorFailed, "Extractor failed")
     };
-    DownloadError::new(kind, msg).with_detail(redact(line))
+    // The last lines of stderr (warnings included) help when reporting a problem.
+    let tail: Vec<&str> = stderr.lines().filter(|l| !l.trim().is_empty()).collect();
+    let tail = tail[tail.len().saturating_sub(12)..].join("\n");
+    DownloadError::new(kind, msg).with_detail(redact(if tail.is_empty() { line } else { &tail }))
 }
 
 fn opt_str(v: &serde_json::Value, k: &str) -> Option<String> {
@@ -413,32 +490,34 @@ impl VideoEngine {
         self.tools.find("yt-dlp", configured).ok_or_else(missing_ytdlp)
     }
 
-    /// Fetches metadata (title, thumbnail, duration, formats) without downloading.
-    pub async fn inspect(&self, url: &str, ytdlp_path: &str, ffmpeg_path: &str) -> Result<VideoInfo> {
-        self.inspect_with(url, ytdlp_path, ffmpeg_path, "").await
-    }
-
     /// Metadata for a video, or for a playlist when the URL is one. A video
     /// URL that also names a playlist (`&list=`) gets the playlist attached.
-    pub async fn inspect_with(&self, url: &str, ytdlp_path: &str, ffmpeg_path: &str, js_runtime: &str) -> Result<VideoInfo> {
+    pub async fn inspect(&self, url: &str, settings: &Settings) -> Result<VideoInfo> {
         let u = http_url(url)?;
-        let mut info = self.dump_json(&u, ytdlp_path, ffmpeg_path, js_runtime, false).await?;
+        let mut info = self.dump_json(&u, settings, false).await?;
         if info.playlist.is_none() && wants_playlist(&u) {
-            if let Ok(pl) = self.dump_json(&u, ytdlp_path, ffmpeg_path, js_runtime, true).await {
+            if let Ok(pl) = self.dump_json(&u, settings, true).await {
                 info.playlist = pl.playlist.filter(|p| p.entries.len() > 1);
             }
         }
         Ok(info)
     }
 
-    async fn dump_json(&self, u: &url::Url, ytdlp_path: &str, ffmpeg_path: &str, js_runtime: &str, flat_playlist: bool) -> Result<VideoInfo> {
-        let bin = self.ytdlp(ytdlp_path)?;
-        let ffmpeg = self.tools.find("ffmpeg", ffmpeg_path).is_some();
+    async fn dump_json(&self, u: &url::Url, settings: &Settings, flat_playlist: bool) -> Result<VideoInfo> {
+        let bin = self.ytdlp(&settings.ytdlp_path)?;
+        let ffmpeg = self.tools.find("ffmpeg", &settings.ffmpeg_path);
         let mode: &[&str] = if flat_playlist { &["--yes-playlist", "--flat-playlist"] } else { &["--no-playlist"] };
-        let child = command(&bin)
-            .args(["--ignore-config", "--no-warnings", "--dump-single-json", "--skip-download", "--no-color"])
+        let mut cmd = command(&bin);
+        cmd.args(["--ignore-config", "--dump-single-json", "--skip-download", "--no-color"])
             .args(mode)
-            .args(js_runtime_args(&self.tools, js_runtime))
+            .args(js_runtime_args(&self.tools, &settings.js_runtime_path))
+            .args(network_args(settings))
+            .arg("--socket-timeout")
+            .arg(settings.read_timeout_secs.to_string());
+        if let Some(ff) = &ffmpeg {
+            cmd.arg("--ffmpeg-location").arg(ff);
+        }
+        let child = cmd
             .arg("--")
             .arg(u.as_str())
             .stdout(Stdio::piped())
@@ -454,7 +533,7 @@ impl VideoEngine {
         }
         let json: serde_json::Value = serde_json::from_slice(&out.stdout)
             .map_err(|e| DownloadError::new(ErrorKind::ExtractorFailed, "Extractor returned invalid data").with_detail(e.to_string()))?;
-        parse_info(&json, ffmpeg)
+        parse_info(&json, ffmpeg.is_some())
     }
 
     /// Runs the yt-dlp self-updater (works for the official standalone binaries,
@@ -502,15 +581,31 @@ impl Engine for VideoEngine {
 async fn run(tools: Arc<ToolLocator>, mut ctx: JobContext) -> Result<EngineOutcome> {
     let d = ctx.download.clone();
     let u = http_url(&d.url)?;
+    {
+        // Logged on the download so the user sees why it is waiting.
+        let meta = ctx.meta.clone();
+        let report = move |e: ToolSetup| {
+            let text = match e.phase {
+                ToolSetupPhase::Downloading if e.downloaded == 0 => Some(format!("Setting up {} for video downloads", e.tool)),
+                ToolSetupPhase::Installed => Some(format!("Installed {}", e.tool)),
+                ToolSetupPhase::Failed => Some(format!("Could not set up {}: {}", e.tool, e.message.unwrap_or_default())),
+                _ => None,
+            };
+            if let Some(t) = text {
+                let _ = meta.send(MetaUpdate { event: Some(t), ..Default::default() });
+            }
+        };
+        ensure_tools(&tools, &ctx.http, &ctx.settings, &report).await;
+    }
     let bin = tools.find("yt-dlp", &ctx.settings.ytdlp_path).ok_or_else(missing_ytdlp)?;
     let ffmpeg = tools.find("ffmpeg", &ctx.settings.ffmpeg_path);
     let save_dir = PathBuf::from(&d.save_dir);
     let tmp = partial_dir(&save_dir, &d.id);
     tokio::fs::create_dir_all(&tmp).await.map_err(|e| DownloadError::fs("Cannot create destination folder", &e))?;
 
-    let selector = d.engine_options.format_id.clone().unwrap_or_else(|| if ffmpeg.is_some() { "bv*+ba/b".into() } else { "b".into() });
+    let selector = format_selector(d.engine_options.format_id.as_deref(), ffmpeg.is_some());
     let mut cmd = command(&bin);
-    cmd.args(["--ignore-config", "--no-warnings", "--no-playlist", "--no-color", "--newline", "--progress", "--no-simulate", "--continue", "--windows-filenames", "--no-mtime"]);
+    cmd.args(["--ignore-config", "--no-playlist", "--no-color", "--newline", "--progress", "--no-simulate", "--continue", "--windows-filenames", "--no-mtime"]);
     cmd.arg("--progress-template").arg(format!(
         "download:{PROGRESS_PREFIX}%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s"
     ));
@@ -545,15 +640,7 @@ async fn run(tools: Arc<ToolLocator>, mut ctx: JobContext) -> Result<EngineOutco
     if let Some(l) = limit {
         cmd.arg("--limit-rate").arg(l.to_string());
     }
-    match ctx.settings.proxy_mode {
-        crate::settings::ProxyMode::None => {
-            cmd.arg("--proxy").arg("");
-        }
-        crate::settings::ProxyMode::Manual => {
-            cmd.arg("--proxy").arg(ctx.settings.proxy_url.trim());
-        }
-        crate::settings::ProxyMode::System => {}
-    }
+    cmd.args(network_args(&ctx.settings));
     if let Some(r) = d.referrer.as_deref().filter(|r| r.starts_with("http")) {
         cmd.arg("--referer").arg(r);
     }
@@ -693,6 +780,33 @@ mod tests {
         assert_eq!(classify_ytdlp_error("ERROR: Unable to download webpage: timed out").kind, ErrorKind::NetworkUnavailable);
         let e = classify_ytdlp_error("ERROR: failed https://u:p@h.com/x?sig=secret");
         assert!(!e.detail.unwrap().contains("secret"));
+        // YouTube's bot check is not a "private video".
+        let e = classify_ytdlp_error("ERROR: [youtube] abc: Sign in to confirm you’re not a bot. Use --cookies-from-browser");
+        assert!(e.message.contains("cookies"), "{}", e.message);
+        // A missing JS runtime shows up as a warning before the actual error.
+        let e = classify_ytdlp_error("WARNING: [youtube] No supported JavaScript runtime could be found.\nERROR: [youtube] abc: Requested format is not available");
+        assert_eq!(e.kind, ErrorKind::EngineUnavailable);
+        assert!(e.detail.unwrap().contains("JavaScript runtime"));
+    }
+
+    #[test]
+    fn format_selector_has_fallbacks() {
+        assert_eq!(format_selector(None, true), "bv*+ba/b/best*");
+        assert_eq!(format_selector(None, false), "b/best*[acodec!=none]/best*");
+        assert_eq!(format_selector(Some("bv*[height<=720]+ba/b[height<=720]"), true), "bv*[height<=720]+ba/b[height<=720]/bv*+ba/b/best*");
+        assert_eq!(format_selector(Some("bv*+ba/b"), true), "bv*+ba/b");
+    }
+
+    #[test]
+    fn network_args_follow_settings() {
+        let mut s = Settings { proxy_mode: ProxyMode::Manual, proxy_url: "http://127.0.0.1:8080".into(), ..Default::default() };
+        assert_eq!(network_args(&s), ["--proxy", "http://127.0.0.1:8080"]);
+        s.proxy_mode = ProxyMode::None;
+        s.video_cookies_browser = "firefox".into();
+        assert_eq!(network_args(&s), ["--proxy", "", "--cookies-from-browser", "firefox"]);
+        s.proxy_mode = ProxyMode::System;
+        s.video_cookies_browser = "--exec=calc".into();
+        assert!(network_args(&s).is_empty(), "unknown browsers are never passed to yt-dlp");
     }
 
     #[test]

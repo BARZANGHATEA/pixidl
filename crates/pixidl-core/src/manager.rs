@@ -442,6 +442,51 @@ impl DownloadManager {
         tools::install_ytdlp(&client, dest_dir).await
     }
 
+    /// Installs FFmpeg (yt-dlp's Windows build, checksum-verified) into `dest_dir`.
+    pub async fn install_ffmpeg(&self, dest_dir: &Path) -> Result<PathBuf> {
+        let client = self.inner.client.read().clone();
+        let sink = self.inner.sink.clone();
+        let progress = move |downloaded: u64, total: Option<u64>| {
+            sink.emit(ManagerEvent::ToolSetup { setup: ToolSetup { tool: "ffmpeg".into(), phase: ToolSetupPhase::Downloading, downloaded, total, message: None } })
+        };
+        tools::install_ffmpeg(&client, dest_dir, &progress).await
+    }
+
+    /// Once a day (or when `force`), replaces the bundled/auto-installed yt-dlp
+    /// with the latest official release if it differs. A yt-dlp the user
+    /// configured or installed system-wide is left alone. Returns the new path
+    /// when an update was installed.
+    pub async fn auto_update_ytdlp(&self, force: bool) -> Result<Option<PathBuf>> {
+        const KEY: &str = "ytdlp_checked_at";
+        let s = self.settings();
+        if !force && (!s.ytdlp_auto_update || !s.ytdlp_path.trim().is_empty()) {
+            return Ok(None);
+        }
+        let now = chrono::Utc::now().timestamp();
+        let last = self.inner.db.get_kv(KEY)?.and_then(|v| v.parse::<i64>().ok()).unwrap_or(0);
+        if !force && now - last < 24 * 3600 {
+            return Ok(None);
+        }
+        let engines = crate::paths::engines_dir();
+        let current = self.inner.tools.find("yt-dlp", &s.ytdlp_path);
+        let managed = current.as_ref().is_none_or(|p| self.inner.tools.search_dirs().iter().any(|d| p.starts_with(d)));
+        if !managed {
+            return Ok(None);
+        }
+        let client = self.inner.client.read().clone();
+        let outdated = match &current {
+            Some(p) => tools::ytdlp_is_outdated(&client, p).await?,
+            None => true,
+        };
+        self.inner.db.set_kv(KEY, &now.to_string())?;
+        if !outdated {
+            return Ok(None);
+        }
+        let path = tools::install_ytdlp(&client, &engines).await?;
+        self.inner.sink.emit(ManagerEvent::ToolSetup { setup: ToolSetup { tool: "yt-dlp".into(), phase: ToolSetupPhase::Installed, downloaded: 0, total: None, message: None } });
+        Ok(Some(path))
+    }
+
     pub async fn update_ytdlp(&self) -> Result<String> {
         let s = self.settings();
         self.inner.video.self_update(&s.ytdlp_path).await
@@ -849,7 +894,11 @@ impl Inner {
             }
             EngineKind::Video => {
                 out.alternatives = vec![EngineKind::Http];
-                match self.video.inspect_with(url.as_str(), &settings.ytdlp_path, &settings.ffmpeg_path, &settings.js_runtime_path).await {
+                let client = self.client.read().clone();
+                let sink = self.sink.clone();
+                let report = move |setup: ToolSetup| sink.emit(ManagerEvent::ToolSetup { setup });
+                crate::engines::video::ensure_tools(&self.tools, &client, &settings, &report).await;
+                match self.video.inspect(url.as_str(), &settings).await {
                     Ok(info) => {
                         out.filename = Some(security::sanitize_filename(&info.title));
                         out.total_bytes = info.presets.first().and_then(|p| p.approx_size);
@@ -883,7 +932,7 @@ impl Inner {
                                 // A web page: maybe a media page the extractor understands.
                                 out.alternatives = vec![EngineKind::Video];
                                 if self.tools.find("yt-dlp", &settings.ytdlp_path).is_some() {
-                                    if let Ok(Ok(info)) = tokio::time::timeout(Duration::from_secs(30), self.video.inspect(url.as_str(), &settings.ytdlp_path, &settings.ffmpeg_path)).await {
+                                    if let Ok(Ok(info)) = tokio::time::timeout(Duration::from_secs(30), self.video.inspect(url.as_str(), &settings)).await {
                                         if !info.formats.is_empty() {
                                             out.engine = EngineKind::Video;
                                             out.alternatives = vec![EngineKind::Http];

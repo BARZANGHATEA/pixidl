@@ -292,9 +292,26 @@ pub async fn probe_links(state: State<'_, AppState>, urls: Vec<String>) -> CmdRe
     Ok(state.mgr.probe_links(urls.into_iter().map(|u| (u, None)).collect()).await)
 }
 
+/// Updates yt-dlp now: the copy pixidl manages is replaced with the latest
+/// verified release; a user-installed yt-dlp updates itself (`-U`).
 #[tauri::command]
 pub async fn update_ytdlp(state: State<'_, AppState>) -> CmdResult<String> {
+    let s = state.mgr.settings();
+    if s.ytdlp_path.trim().is_empty() {
+        if let Some(p) = state.mgr.auto_update_ytdlp(true).await? {
+            return Ok(format!("Installed the latest yt-dlp: {}", p.display()));
+        }
+        if state.mgr.engine_status().await.0.available {
+            return Ok("yt-dlp is up to date".into());
+        }
+    }
     Ok(state.mgr.update_ytdlp().await?)
+}
+
+#[tauri::command]
+pub async fn install_ffmpeg(state: State<'_, AppState>) -> CmdResult<String> {
+    let p = state.mgr.install_ffmpeg(&pixidl_core::paths::engines_dir().join("ffmpeg")).await?;
+    Ok(p.display().to_string())
 }
 
 #[derive(Serialize)]

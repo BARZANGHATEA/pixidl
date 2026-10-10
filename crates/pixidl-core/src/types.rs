@@ -413,6 +413,32 @@ pub enum ManagerEvent {
     /// A browser extension asked to open the Add dialog for this URL.
     ShowAddDialog { url: String },
     EngineError { engine: EngineKind, message: String },
+    /// Progress of an automatic tool download (Deno, FFmpeg, yt-dlp).
+    ToolSetup { setup: ToolSetup },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ToolSetupPhase {
+    Downloading,
+    Installed,
+    Failed,
+}
+
+/// An external tool being downloaded for the video engine.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ToolSetup {
+    /// deno | ffmpeg | yt-dlp
+    pub tool: String,
+    pub phase: ToolSetupPhase,
+    #[ts(type = "number")]
+    pub downloaded: u64,
+    #[ts(type = "number | null")]
+    pub total: Option<u64>,
+    pub message: Option<String>,
 }
 
 /// A browser extension that has talked to the app.

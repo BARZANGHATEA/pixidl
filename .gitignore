@@ -12,3 +12,5 @@ coverage/
 *.tsbuildinfo
 src-tauri/resources/bin/*
 !src-tauri/resources/bin/README.md
+/target-*/
+.claude/worktrees/

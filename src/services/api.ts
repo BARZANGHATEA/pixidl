@@ -87,6 +87,7 @@ export const api = {
   openBrowserExtensionsPage: (browserName: string) => call<void>("open_browser_extensions_page", { browserName }),
   revealPath: (path: string) => call<void>("reveal_path", { path }),
   installDeno: () => call<string>("install_deno"),
+  installFfmpeg: () => call<string>("install_ffmpeg"),
   probeLinks: (urls: string[]) => call<LinkProbe[]>("probe_links", { urls }),
 };
 

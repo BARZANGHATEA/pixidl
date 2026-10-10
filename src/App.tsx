@@ -9,6 +9,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { AddDownloadDialog } from "./components/AddDownloadDialog";
 import { DetailsDrawer } from "./components/DetailsDrawer";
 import { PowerBanner } from "./components/PowerBanner";
+import { ToolSetupBanner } from "./components/ToolSetupBanner";
 import { DownloadsPage } from "./pages/DownloadsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -127,6 +128,7 @@ export default function App() {
       <main className="main">
         <TitleBar />
         <PowerBanner />
+        <ToolSetupBanner />
         {view === "downloads" && <DownloadsPage />}
         {view === "history" && <HistoryPage />}
         {view === "extensions" && <ExtensionsPage />}

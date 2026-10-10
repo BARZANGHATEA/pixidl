@@ -27,7 +27,22 @@ allowedFirefoxIds: Array<string>, ytdlpPath: string, ffmpegPath: string,
 /**
  * JavaScript runtime for yt-dlp's YouTube support (Deno/Node/Bun); empty = auto.
  */
-jsRuntimePath: string, torrentListenPort: number, torrentEnableDht: boolean, 
+jsRuntimePath: string, 
+/**
+ * Download Deno (and FFmpeg on Windows) automatically the first time a
+ * video needs them.
+ */
+videoAutoSetup: boolean, 
+/**
+ * Keep yt-dlp current: check the official release once a day and install
+ * a newer build into the engines folder.
+ */
+ytdlpAutoUpdate: boolean, 
+/**
+ * Browser whose cookies yt-dlp may read (`--cookies-from-browser`), for
+ * sites that require a signed-in session; empty = none.
+ */
+videoCookiesBrowser: string, torrentListenPort: number, torrentEnableDht: boolean, 
 /**
  * Keep seeding after a torrent completes.
  */
