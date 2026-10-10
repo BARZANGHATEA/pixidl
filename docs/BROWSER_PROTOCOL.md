@@ -46,7 +46,7 @@ directions.
 - `version` — must be `1`. Any other value returns `unsupported_version`.
 - `id` — optional string (≤128 chars) or number; echoed in the response.
 - `payload` — object; may be omitted for `ping` and `get_status`.
-- `client` — optional `{ "browser": "chrome|edge|brave|firefox|chromium|opera|vivaldi", "version": "2.0.0" }`.
+- `client` — optional `{ "browser": "chrome|edge|brave|firefox|chromium|opera|vivaldi", "version": "2.1.0" }`.
   The app shows connected extensions on its *Extensions* page. Unknown browsers are
   recorded as `other`.
 
@@ -71,6 +71,14 @@ directions.
 
 `add_download` / `add_multiple_downloads` items also accept an optional `engine`
 hint: `http`, `video` (yt-dlp) or `torrent`.
+
+Browser downloads captured by the extension (on by default since extension 2.1)
+arrive as an ordinary `add_download` with `url` (the final URL after redirects),
+`filename` (the browser's suggested name) and `referrer` (the page that started
+it). The protocol has no size or MIME fields, so those are not sent. The
+extension removes its own copy of the download only after `add_download`
+succeeds; on any error (including `app_unavailable` and `unauthorized`) or no
+answer within 25 s, the browser keeps the download.
 
 `ping` additionally returns `integration_enabled`, `accent_color` and `language`
 so the extension can match the app's look and language.

@@ -3,7 +3,7 @@
   "name": "__MSG_extName__",
   "short_name": "pixidl",
   "description": "__MSG_extDescription__",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "default_locale": "en",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtJlUon0UEsmzL+Zwv1XFpJEl+hqFgJtW20sAsTOOJCFrz5kd35HrNxLuadtgTqVV72ly54FTJ1qgbBCEZL9pCREATC4m3aUSnB5GNKgITPHeK2V5/1bnoVrxvr+nFmVMg8F+X0SEtPoZ4jbtpKjnaAnc6Ym7NtYLJUA8UslCBZr9JV/hitfyPKZnTFuHZwNxYx4uSMFD1B79S1KOkGq/Bjvlt1KH3j/7yVNF7q9bOgHQA0r73X9eBXqC0HarNH49cRnQI8fbN9bV4d+E7V2wQiF/farJyadHX2/pMB5OsoAnO0thMKgIKtk/TvlNT3CLCp0pVPy9vDCdEqWumVfTvwIDAQAB",
   "icons": {

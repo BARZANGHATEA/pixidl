@@ -117,12 +117,13 @@ test("link lists are validated and de-duplicated (fragment ignored), labels kept
 
 test("URLs typed in selected text are extracted", () => {
   const text = `Mirror: https://a.com/file.zip, or (see https://b.com/wiki/Foo_(bar)). Torrent ${MAGNET}.
-    Persian: https://c.com/x.pdf، و ftp://d.com/no and www.e.com/no "https://f.com/q?a=1&b=2"`;
+    Persian: https://c.com/x.pdf، و ftp://d.com/no and www.e.com/yes "https://f.com/q?a=1&b=2"`;
   assert.deepEqual(extractUrlsFromText(text), [
     "https://a.com/file.zip",
     "https://b.com/wiki/Foo_(bar)",
     MAGNET,
     "https://c.com/x.pdf",
+    "https://www.e.com/yes",
     "https://f.com/q?a=1&b=2",
   ]);
   assert.deepEqual(extractUrlsFromText(""), []);
@@ -307,16 +308,16 @@ test("YouTube canonical video URLs", () => {
 });
 
 test("settings and the cached ping", () => {
-  assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
-  assert.deepEqual(DEFAULT_SETTINGS, { selectionButton: true, detectLinks: true, showBadge: true, youtubeButton: true, captureDownloads: false, minSizeMb: 0 });
-  const s = sanitizeSettings({ selectionButton: false, detectLinks: "no", captureDownloads: "yes", minSizeMb: "12.7" });
+  // Detailed defaults, migration and capture rules: settings.test.mjs.
+  assert.equal(DEFAULT_SETTINGS.captureDownloads, true);
+  const s = sanitizeSettings({ settingsVersion: 2, selectionButton: false, detectLinks: "no", captureDownloads: "yes", minSizeKb: "12.7" });
   assert.equal(s.selectionButton, false);
   assert.equal(s.detectLinks, true);
-  assert.equal(s.captureDownloads, false);
-  assert.equal(s.minSizeMb, 12);
-  assert.equal(sanitizeSettings({ minSizeMb: "-3" }).minSizeMb, 0);
-  assert.equal(meetsMinSize(5 * 1024 * 1024, 10), false);
-  assert.equal(meetsMinSize(20 * 1024 * 1024, 10), true);
+  assert.equal(s.captureDownloads, true, "a non-boolean falls back to the default");
+  assert.equal(s.minSizeKb, 12);
+  assert.equal(sanitizeSettings({ settingsVersion: 2, minSizeKb: "-3" }).minSizeKb, 0);
+  assert.equal(meetsMinSize(5 * 1024 * 1024, 10 * 1024), false);
+  assert.equal(meetsMinSize(20 * 1024 * 1024, 10 * 1024), true);
   assert.equal(meetsMinSize(-1, 10), true, "unknown size is captured");
 
   const ok = pingSummary({ success: true, app_version: "1.0.0", accent_color: "#10B981", language: "fa", integration_enabled: true }, 5);

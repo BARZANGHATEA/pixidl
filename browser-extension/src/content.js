@@ -6,19 +6,26 @@
 // DOM roots, is built with createElement/textContent only (never page HTML),
 // and nothing runs for features that are turned off.
 
-/* global DEFAULT_SETTINGS, MAX_DETECTED, MAX_PAGE_LINKS, extractUrlsFromText, isDownloadLink,
-   normalizeEntries, safeAccent, sanitizeSettings, youtubeVideoUrl */
+/* global DEFAULT_SETTINGS, MAX_DETECTED, MAX_PAGE_LINKS, SETTINGS_STORAGE_KEYS, extractUrlsFromText,
+   isDownloadLink, normalizeEntries, safeAccent, sanitizeSettings, youtubeVideoUrl */
 
 function pixidlContentScript() {
   const api = globalThis.browser ?? globalThis.chrome;
   if (!api?.runtime?.id || window.top !== window) return;
 
-  // A previous copy of this script (e.g. from before an extension update)
-  // removes its UI and listeners when a new copy starts.
+  // The background injects this script into tabs that were open before the
+  // extension was installed, updated or enabled, and the browser may inject it
+  // too. Copies of the same running extension share this isolated world: a
+  // live one means there is nothing to do.
+  const GUARD = "__pixidlContentScript";
+  if (globalThis[GUARD]?.isAlive?.()) return;
+
+  // A previous copy of this script (e.g. from before an extension update, now
+  // cut off from the extension) removes its UI and listeners.
   const TEARDOWN_EVENT = "pixidl-content-teardown";
   document.dispatchEvent(new CustomEvent(TEARDOWN_EVENT));
 
-  const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);
+  const SETTING_KEYS = [...SETTINGS_STORAGE_KEYS];
   const SCAN_INTERVAL_MS = 1500;
   const SELECTION_DEBOUNCE_MS = 180;
   const BUTTON_SIZE = 28;
@@ -39,6 +46,16 @@ function pixidlContentScript() {
   let accent = safeAccent(null);
   let alive = true;
   const disposers = [];
+
+  /**
+   * True (and everything removed) once the extension that injected this copy
+   * was disabled, removed or reloaded: its UI must not linger on the page.
+   */
+  function orphaned() {
+    if (api.runtime?.id) return false;
+    destroy();
+    return true;
+  }
 
   // ---- Messaging -----------------------------------------------------------------
 
@@ -132,10 +149,11 @@ function pixidlContentScript() {
       all: initial; box-sizing: border-box; position: fixed; display: flex;
       align-items: center; justify-content: center; width: ${BUTTON_SIZE}px; height: ${BUTTON_SIZE}px;
       border: 0; border-radius: 50%; background: transparent; color: #71717a; cursor: pointer;
-      box-shadow: none; outline: none; -webkit-tap-highlight-color: transparent;
+      /* Transparent, but a thin ring keeps it findable on any background. */
+      box-shadow: inset 0 0 0 1px rgba(113, 113, 122, 0.45); outline: none; -webkit-tap-highlight-color: transparent;
       transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
     }
-    .sel svg { display: block; opacity: 0.55; transition: opacity 120ms ease; }
+    .sel svg { display: block; opacity: 0.8; transition: opacity 120ms ease; }
     .sel:hover, .sel:focus-visible { background: var(--pxd-accent); color: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
     .sel:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--pxd-accent); }
     .sel:hover svg, .sel:focus-visible svg { opacity: 1; }
@@ -224,64 +242,231 @@ function pixidlContentScript() {
   }
 
   // ---- Selection download button -----------------------------------------------------
+  //
+  // Shown when the selection holds at least one downloadable address: an
+  // <a href> inside it, a link the selection sits in, or an http(s)/magnet/www.
+  // address typed as text. Works for mouse, double/triple-click and keyboard
+  // selections, and for text selected inside <input>/<textarea> (only when
+  // that text contains an address). Follows the selection while the page
+  // scrolls or resizes.
+
+  const MAX_SELECTION_TEXT = 200000;
+  /** A pointer press older than this no longer blocks the button (missed pointerup). */
+  const STALE_PRESS_MS = 8000;
+  const GAP = 6;
 
   let selectionLinks = [];
   let selectionTimer = 0;
-  let pointerDown = false;
   let selectionActive = false;
+  let pointerDown = false;
+  let pointerDownAt = 0;
+  let lastPointerUp = null; // {x, y, time} of the last release outside our UI
+  let anchor = null; // {kind: "range", range} or {kind: "field", field, dx, dy}
+  let selectionKey = ""; // what the button currently stands for
+  let dismissedKey = ""; // selection hidden with Escape stays hidden until it changes
+  let positionFrame = 0;
 
-  function collectSelection(selection) {
+  const TEXT_INPUT_TYPES = new Set(["", "text", "search", "url", "tel", "email"]);
+
+  /** The focused <input>/<textarea> with selected text, looking into open shadow roots. */
+  function focusedTextField() {
+    let node = document.activeElement;
+    while (node?.shadowRoot?.activeElement) node = node.shadowRoot.activeElement;
+    if (!node) return null;
+    const isField = node.localName === "textarea" || (node.localName === "input" && TEXT_INPUT_TYPES.has(String(node.getAttribute("type") || "").toLowerCase()));
+    if (!isField) return null;
+    try {
+      const start = node.selectionStart;
+      const end = node.selectionEnd;
+      if (typeof start !== "number" || typeof end !== "number" || end <= start) return null;
+      return { field: node, text: String(node.value).slice(start, Math.min(end, start + MAX_SELECTION_TEXT)) };
+    } catch {
+      return null; // e.g. type=email does not expose its selection
+    }
+  }
+
+  function collectRanges(selection) {
     const entries = [];
     for (let i = 0; i < selection.rangeCount; i++) {
       const range = selection.getRangeAt(i);
       const node = range.commonAncestorContainer;
       const root = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
       if (!root || (overlay && root === overlay.host)) continue;
-      const enclosing = root.closest("a[href]");
-      if (enclosing && typeof enclosing.href === "string") entries.push({ url: enclosing.href, label: enclosing.textContent });
+      // The selection is inside a link (e.g. a double-clicked word of it).
+      const enclosing = root.closest("a[href], area[href]");
+      if (enclosing && typeof enclosing.href === "string") entries.push({ url: enclosing.href, label: (enclosing.textContent || "").slice(0, 400) });
       for (const a of root.querySelectorAll("a[href], area[href]")) {
         if (typeof a.href === "string" && range.intersectsNode(a)) entries.push({ url: a.href, label: (a.textContent || "").slice(0, 400) });
         if (entries.length >= MAX_PAGE_LINKS) break;
       }
     }
-    for (const url of extractUrlsFromText(String(selection).slice(0, 200000))) entries.push({ url, label: "" });
+    return entries;
+  }
+
+  function linksFrom(entries, text) {
+    for (const url of extractUrlsFromText(text)) entries.push({ url, label: "" });
     return normalizeEntries(entries, { exclude: [location.href], limit: MAX_PAGE_LINKS });
+  }
+
+  const visibleRect = (r) => r && r.width > 0 && r.height > 0;
+
+  /** The client rect of the last rendered, non-blank text in the range, and its element. */
+  function rangeEnd(range) {
+    try {
+      return lastTextRect(range);
+    } catch {
+      return null;
+    }
+  }
+
+  function lastTextRect(range) {
+    const fallback = () => {
+      const rects = [...range.getClientRects()].filter(visibleRect);
+      const rect = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
+      const node = range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer : range.endContainer.parentElement;
+      return visibleRect(rect) ? { rect, element: node } : null;
+    };
+    // Start from the node just before the range's end point and walk back to
+    // the last text node with visible selected characters. This skips the
+    // empty line a triple-click selection ends on and whole-block rects.
+    let start = range.endContainer;
+    if (start.nodeType !== Node.TEXT_NODE) {
+      const child = start.childNodes[range.endOffset - 1];
+      if (child) {
+        start = child;
+        while (start.lastChild) start = start.lastChild;
+      }
+    }
+    const root = range.commonAncestorContainer;
+    const walker = document.createTreeWalker(root.nodeType === Node.TEXT_NODE ? root.parentNode : root, NodeFilter.SHOW_TEXT);
+    walker.currentNode = start;
+    let node = start.nodeType === Node.TEXT_NODE ? start : walker.previousNode();
+    for (let steps = 0; node && steps < 400; steps++, node = walker.previousNode()) {
+      if (!range.intersectsNode(node)) {
+        if (range.comparePoint(node, 0) < 0) break; // before the range: done
+        continue;
+      }
+      const from = node === range.startContainer ? range.startOffset : 0;
+      const to = node === range.endContainer ? range.endOffset : node.length;
+      if (to <= from || !/\S/.test(node.data.slice(from, to))) continue;
+      const sub = document.createRange();
+      sub.setStart(node, from);
+      sub.setEnd(node, to);
+      const rects = [...sub.getClientRects()].filter(visibleRect);
+      if (rects.length) return { rect: rects[rects.length - 1], element: node.parentElement };
+    }
+    return fallback();
+  }
+
+  /** Where the button goes for the current anchor, or null when it is off screen. */
+  function anchorPosition() {
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight;
+    let x;
+    let y;
+    if (anchor?.kind === "range") {
+      const end = rangeEnd(anchor.range);
+      if (!end) return null;
+      const { rect, element } = end;
+      if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
+      const rtl = element ? getComputedStyle(element).direction === "rtl" : false;
+      x = rtl ? rect.left - BUTTON_SIZE - GAP : rect.right + GAP;
+      y = rect.top + rect.height / 2 - BUTTON_SIZE / 2;
+    } else if (anchor?.kind === "field") {
+      if (!anchor.field.isConnected) return null;
+      const rect = anchor.field.getBoundingClientRect();
+      if (!visibleRect(rect) || rect.bottom < 0 || rect.top > vh) return null;
+      x = rect.left + anchor.dx;
+      y = rect.top + anchor.dy;
+    } else {
+      return null;
+    }
+    return {
+      x: Math.min(Math.max(4, x), vw - BUTTON_SIZE - 4),
+      y: Math.min(Math.max(4, y), vh - BUTTON_SIZE - 4),
+    };
+  }
+
+  function placeButton() {
+    positionFrame = 0;
+    if (!overlay || selectionLinks.length === 0) return;
+    const pos = anchorPosition();
+    if (!pos) {
+      overlay.button.hidden = true; // scrolled away; comes back with the selection
+      return;
+    }
+    overlay.button.style.left = `${Math.round(pos.x)}px`;
+    overlay.button.style.top = `${Math.round(pos.y)}px`;
+    overlay.button.hidden = false;
+  }
+
+  function schedulePlacement() {
+    if (selectionLinks.length === 0 || positionFrame) return;
+    positionFrame = requestAnimationFrame(placeButton);
   }
 
   function hideSelectionButton() {
     if (overlay) overlay.button.hidden = true;
     selectionLinks = [];
+    anchor = null;
+    if (positionFrame) cancelAnimationFrame(positionFrame);
+    positionFrame = 0;
+  }
+
+  /** Anchor for a selection inside a text field: next to the pointer release, or beside the field. */
+  function fieldAnchor(field) {
+    const rect = field.getBoundingClientRect();
+    const up = lastPointerUp;
+    if (up && Date.now() - up.time < 1500 && up.x >= rect.left && up.x <= rect.right && up.y >= rect.top && up.y <= rect.bottom) {
+      return { kind: "field", field, dx: up.x - rect.left + GAP, dy: up.y - rect.top - BUTTON_SIZE / 2 };
+    }
+    const rtl = getComputedStyle(field).direction === "rtl";
+    const dy = Math.min(rect.height, 40) / 2 - BUTTON_SIZE / 2;
+    return { kind: "field", field, dx: rtl ? -BUTTON_SIZE - GAP : rect.width + GAP, dy };
   }
 
   function evaluateSelection() {
     selectionTimer = 0;
-    if (!settings.selectionButton || pointerDown) return;
-    const selection = document.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return hideSelectionButton();
-    const links = collectSelection(selection);
-    if (links.length === 0) return hideSelectionButton();
+    if (orphaned()) return;
+    if (!alive || !settings.selectionButton) return;
+    if (pointerDown && Date.now() - pointerDownAt < STALE_PRESS_MS) return; // still dragging: wait for the release
+    pointerDown = false;
 
-    const range = selection.getRangeAt(selection.rangeCount - 1);
-    const rects = range.getClientRects();
-    const rect = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
-    const endNode = range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer : range.endContainer.parentElement;
-    const rtl = endNode ? getComputedStyle(endNode).direction === "rtl" : false;
-    const gap = 6;
-    let x = rtl ? rect.left - BUTTON_SIZE - gap : rect.right + gap;
-    let y = rect.top + rect.height / 2 - BUTTON_SIZE / 2;
-    x = Math.min(Math.max(4, x), window.innerWidth - BUTTON_SIZE - 4);
-    y = Math.min(Math.max(4, y), window.innerHeight - BUTTON_SIZE - 4);
+    let links = [];
+    let nextAnchor = null;
+    let key = "";
+    const fieldSel = focusedTextField();
+    if (fieldSel) {
+      // Inside a text field only typed addresses count, never the page around it.
+      links = linksFrom([], fieldSel.text);
+      nextAnchor = links.length ? fieldAnchor(fieldSel.field) : null;
+      key = `field|${fieldSel.text}`;
+    } else {
+      const selection = document.getSelection();
+      if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+        const text = String(selection).slice(0, MAX_SELECTION_TEXT);
+        links = linksFrom(collectRanges(selection), text);
+        if (links.length) nextAnchor = { kind: "range", range: selection.getRangeAt(selection.rangeCount - 1).cloneRange() };
+        key = `range|${text}|${links.length}`;
+      }
+    }
+    if (links.length === 0 || !nextAnchor) {
+      dismissedKey = "";
+      return hideSelectionButton();
+    }
+    if (key === dismissedKey) return;
+    dismissedKey = "";
 
     const { button, count } = getOverlay();
     selectionLinks = links;
+    anchor = nextAnchor;
     const label = links.length === 1 ? t("selButtonOne") : t("selButtonMany", [String(links.length)]);
     button.title = label;
     button.setAttribute("aria-label", label);
     count.textContent = links.length > 1 ? (links.length > 99 ? "99+" : String(links.length)) : "";
     count.hidden = links.length <= 1;
-    button.style.left = `${Math.round(x)}px`;
-    button.style.top = `${Math.round(y)}px`;
-    button.hidden = false;
+    placeButton();
+    selectionKey = key;
   }
 
   function scheduleSelection(delay = SELECTION_DEBOUNCE_MS) {
@@ -305,40 +490,75 @@ function pixidlContentScript() {
 
   const isInsideOverlay = (event) => overlay && event.composedPath().includes(overlay.host);
 
+  function releasePointer(e) {
+    if (!pointerDown) return;
+    pointerDown = false;
+    document.removeEventListener("pointermove", selectionListeners.pointermove, true);
+    if (e && Number.isFinite(e.clientX) && e.type !== "dragend") lastPointerUp = { x: e.clientX, y: e.clientY, time: Date.now() };
+    scheduleSelection(60);
+  }
+
   const selectionListeners = {
     selectionchange: () => scheduleSelection(),
     pointerdown: (e) => {
       if (isInsideOverlay(e)) return;
+      if (e.button !== 0 && e.pointerType === "mouse") return; // right/middle click keeps the button
       pointerDown = true;
+      pointerDownAt = Date.now();
       hideSelectionButton();
+      document.addEventListener("pointermove", selectionListeners.pointermove, true);
+    },
+    // A missed pointerup (released over a frame, a drag-and-drop...) must not
+    // keep the button blocked: the next move without a pressed button ends it.
+    pointermove: (e) => {
+      if (e.buttons === 0) releasePointer(e);
     },
     pointerup: (e) => {
-      pointerDown = false;
-      if (isInsideOverlay(e)) return; // our own button: the click handler decides
-      scheduleSelection(60);
+      if (isInsideOverlay(e)) {
+        pointerDown = false;
+        return; // our own button: the click handler decides
+      }
+      releasePointer(e);
+    },
+    // Dragging a link or an image ends in pointercancel/dragend, not pointerup.
+    pointercancel: (e) => releasePointer(e),
+    dragend: (e) => releasePointer(e),
+    select: () => scheduleSelection(), // selection inside <input>/<textarea>
+    keyup: (e) => {
+      if (e.shiftKey || e.key === "Shift" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a")) scheduleSelection();
     },
     keydown: (e) => {
-      if (e.key === "Escape") hideSelectionButton();
+      if (e.key === "Escape" && selectionLinks.length) {
+        dismissedKey = selectionKey;
+        hideSelectionButton();
+      }
     },
-    scroll: () => {
-      if (overlay && !overlay.button.hidden) hideSelectionButton();
-    },
-    resize: () => hideSelectionButton(),
+    reposition: () => schedulePlacement(),
   };
 
   function setSelectionFeature(on) {
     if (on === selectionActive) return;
     selectionActive = on;
     const method = on ? "addEventListener" : "removeEventListener";
-    document[method]("selectionchange", selectionListeners.selectionchange);
+    document[method]("selectionchange", selectionListeners.selectionchange, true);
     document[method]("pointerdown", selectionListeners.pointerdown, true);
     document[method]("pointerup", selectionListeners.pointerup, true);
+    document[method]("pointercancel", selectionListeners.pointercancel, true);
+    document[method]("dragend", selectionListeners.dragend, true);
+    document[method]("select", selectionListeners.select, true);
+    document[method]("keyup", selectionListeners.keyup, true);
     document[method]("keydown", selectionListeners.keydown, true);
-    window[method]("scroll", selectionListeners.scroll, { capture: true, passive: true });
-    window[method]("resize", selectionListeners.resize, { passive: true });
+    window[method]("scroll", selectionListeners.reposition, { capture: true, passive: true });
+    window[method]("resize", selectionListeners.reposition, { passive: true });
+    window.visualViewport?.[method]("resize", selectionListeners.reposition, { passive: true });
+    window.visualViewport?.[method]("scroll", selectionListeners.reposition, { passive: true });
     if (!on) {
+      document.removeEventListener("pointermove", selectionListeners.pointermove, true);
+      pointerDown = false;
       clearTimeout(selectionTimer);
       hideSelectionButton();
+    } else {
+      scheduleSelection(0); // a selection made before the script ran (e.g. injected late)
     }
   }
 
@@ -358,7 +578,7 @@ function pixidlContentScript() {
   function scan() {
     scanTimer = 0;
     lastScan = Date.now();
-    if (!settings.detectLinks) return;
+    if (orphaned() || !settings.detectLinks) return;
     const entries = [];
     for (const node of document.querySelectorAll("a[href], area[href], video[src], audio[src], source[src]")) {
       const tag = node.localName;
@@ -688,10 +908,21 @@ function pixidlContentScript() {
     });
   }
 
+  // Alt+click on a link leaves its download to the browser: the background is
+  // told before the download starts, so it does not hand it to pixidl.
+  function onAltClick(e) {
+    if (!e.altKey || e.button !== 0) return;
+    const link = e.composedPath().find((n) => n instanceof Element && n.matches("a[href], area[href]"));
+    if (link && typeof link.href === "string") toBackground({ type: "pixidl:bypassCapture", url: link.href });
+  }
+
+  globalThis[GUARD] = { isAlive: () => alive && Boolean(api.runtime?.id) };
   document.addEventListener(TEARDOWN_EVENT, destroy, { once: true });
+  document.addEventListener("click", onAltClick, true);
   api.storage.onChanged.addListener(onStorageChanged);
   api.runtime.onMessage.addListener(onMessage);
   disposers.push(
+    () => document.removeEventListener("click", onAltClick, true),
     () => api.storage.onChanged.removeListener(onStorageChanged),
     () => api.runtime.onMessage.removeListener(onMessage),
   );
