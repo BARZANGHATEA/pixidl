@@ -321,12 +321,23 @@ pub fn run() {
 /// once Windows display scaling applies; shrink it to the monitor's work area so
 /// the sidebar footer and status bar are never off-screen.
 fn fit_to_screen(w: &tauri::WebviewWindow) {
-    let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.outer_size()) else { return };
-    let area = monitor.work_area().size;
-    let max_w = (area.width as f64 * 0.95) as u32;
-    let max_h = (area.height as f64 * 0.92) as u32;
-    if size.width > max_w || size.height > max_h {
-        let _ = w.set_size(tauri::PhysicalSize::new(size.width.min(max_w), size.height.min(max_h)));
-        let _ = w.center();
+    // The configured size (tauri.conf.json); outer_size() is not reliable
+    // before the window has been shown on every platform.
+    const WIDTH: f64 = 1200.0;
+    const HEIGHT: f64 = 780.0;
+    let Ok(Some(monitor)) = w.current_monitor().or_else(|_| w.primary_monitor()) else { return };
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let want_w = (WIDTH * scale) as u32;
+    let want_h = (HEIGHT * scale) as u32;
+    let max_w = (area.size.width as f64 * 0.95) as u32;
+    let max_h = (area.size.height as f64 * 0.92) as u32;
+    if want_w <= max_w && want_h <= max_h {
+        return;
     }
+    let (width, height) = (want_w.min(max_w), want_h.min(max_h));
+    let _ = w.set_size(tauri::PhysicalSize::new(width, height));
+    let x = area.position.x + (area.size.width.saturating_sub(width) / 2) as i32;
+    let y = area.position.y + (area.size.height.saturating_sub(height) / 2) as i32;
+    let _ = w.set_position(tauri::PhysicalPosition::new(x, y));
 }

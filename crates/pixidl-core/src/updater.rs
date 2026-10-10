@@ -154,6 +154,15 @@ pub struct GhAsset {
     pub browser_download_url: String,
     #[serde(default)]
     pub size: u64,
+    /// GitHub's own checksum of the uploaded file, e.g. "sha256:ab12…".
+    #[serde(default)]
+    pub digest: Option<String>,
+}
+
+/// The lower-case hex SHA-256 from a GitHub asset digest ("sha256:<64 hex>").
+pub fn digest_sha256(digest: Option<&str>) -> Option<String> {
+    let hex = digest?.trim().strip_prefix("sha256:")?;
+    (hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit())).then(|| hex.to_ascii_lowercase())
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -395,6 +404,11 @@ impl Updater {
             let text = read_limited(r, MAX_SUMS_BODY).await?;
             sha256 = checksum_for(&String::from_utf8_lossy(&text), &inst.name);
         }
+        // Releases uploaded by hand often have no SHA256SUMS.txt; GitHub then
+        // still publishes the SHA-256 it computed for the uploaded installer.
+        if sha256.is_none() {
+            sha256 = installer.as_ref().and_then(|inst| rel.assets.iter().find(|a| a.name == inst.name)).and_then(|a| digest_sha256(a.digest.as_deref()));
+        }
         let name = rel.name.as_deref().map(str::trim).filter(|n| !n.is_empty()).unwrap_or(&rel.tag_name).to_string();
         let html_url = if rel.html_url.starts_with(REPO_URL) || !self.policy.https_only { rel.html_url.clone() } else { RELEASES_URL.to_string() };
         let latest = ReleaseInfo {
@@ -617,7 +631,7 @@ mod tests {
             prerelease: pre,
             published_at: Some("2026-10-01T00:00:00Z".into()),
             html_url: format!("{RELEASES_URL}/tag/{tag}"),
-            assets: assets.iter().map(|n| GhAsset { name: (*n).into(), browser_download_url: format!("{RELEASES_URL}/download/{tag}/{n}"), size: 10 }).collect(),
+            assets: assets.iter().map(|n| GhAsset { name: (*n).into(), browser_download_url: format!("{RELEASES_URL}/download/{tag}/{n}"), size: 10, digest: None }).collect(),
         }
     }
 
@@ -762,5 +776,14 @@ mod tests {
     fn truncates_notes_on_char_boundaries() {
         assert_eq!(truncate_chars("سلام دنیا", 4), "سلام…");
         assert_eq!(truncate_chars("abc", 10), "abc");
+    }
+
+    #[test]
+    fn github_asset_digest() {
+        let h = "187c304114c5b64ab8f21d427d20b4abd9553a23ec162f89b297cf2903e58dc0";
+        assert_eq!(digest_sha256(Some(&format!("sha256:{}", h.to_uppercase()))).as_deref(), Some(h));
+        assert_eq!(digest_sha256(Some("sha512:abc")), None);
+        assert_eq!(digest_sha256(Some("sha256:xyz")), None);
+        assert_eq!(digest_sha256(None), None);
     }
 }

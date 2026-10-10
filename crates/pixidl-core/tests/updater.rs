@@ -269,6 +269,26 @@ async fn live_github_check() {
     }
 }
 
+/// An older app sees the newest real release, and its installer can be
+/// verified (SHA256SUMS.txt or GitHub's asset digest), downloaded and checked.
+/// `cargo test -p pixidl-core --test updater -- --ignored live_github_download`
+#[tokio::test]
+#[ignore = "needs network access to github.com"]
+async fn live_github_download() {
+    let s = Settings::default();
+    let up = Updater::github(&s).unwrap();
+    let info = up.check("0.0.1", false).await.unwrap();
+    println!("{info:#?}");
+    let latest = info.latest.expect("a published release");
+    let sha = latest.sha256.clone().expect("installer checksum");
+    let asset = latest.installer.clone().expect("installer asset");
+    let dir = tempfile::tempdir().unwrap();
+    let cancel = pixidl_core::updater::CancellationToken::new();
+    let path = up.download(&asset, Some(&sha), dir.path(), &|_| {}, &cancel).await.unwrap();
+    pixidl_core::updater::verify_file(&path, &sha).unwrap();
+    println!("verified {}", path.display());
+}
+
 #[test]
 fn github_policy_rejects_a_non_github_api() {
     let s = Settings::default();
