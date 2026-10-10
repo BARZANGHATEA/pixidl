@@ -90,11 +90,29 @@ uses the actual `.part` size on disk.
 **Multi-connection.** Used for resumable files of 2 MiB or more. The engine:
 
 - pre-allocates the `.part` file
-- splits it into N segments (`plan_segments`)
-- downloads each segment with its own ranged request and file handle, retrying
-  each segment independently
-- persists the committed bytes per segment every 2 s (`http_segments` table), so a
-  crash loses at most the unflushed buffer
+- splits it into N segments (`plan_segments`) and starts N workers; the response
+  to the first request is reused for the range it starts at
+- work stealing (`SegmentTable`): a worker takes the lowest unowned range; when
+  none is left it splits the active range with the most bytes remaining at the
+  midpoint of what remains (only if both halves get at least `MIN_SPLIT`,
+  512 KiB) and downloads the upper half. Bytes are claimed under the table
+  lock, so the victim stops exactly at its new end and closes its connection.
+  All connections stay busy until the last MiB instead of the tail of the file
+  running on one connection
+- connection limits: a worker whose request is refused before any data (429,
+  503, 403, 200 to a range request, refused/reset connection) while another
+  worker is receiving gives its range back and exits; the download continues
+  with fewer connections and logs "Server allows only N connections" once.
+  Other errors are retried per range with backoff; the download fails only
+  when no worker is left to make progress
+- persists the committed bytes per segment every 2 s and after every split
+  (`http_segments` table, replaced as a whole), so a crash loses at most the
+  unflushed buffers; on resume, finished segments are merged into their
+  successor and only uncommitted bytes are requested again
+- publishes a live segment map (`SegmentView`, command `get_segments`) shown in
+  the details drawer
+- uses HTTP/1.1 only, so every range really gets its own TCP connection
+  (HTTP/2 would multiplex them onto one)
 
 **Rate limiting.** Every chunk takes tokens from the per-download limiter and then
 from the global token bucket (`ratelimit.rs`). Waiting for tokens can be cancelled.

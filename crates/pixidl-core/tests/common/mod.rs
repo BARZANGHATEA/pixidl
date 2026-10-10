@@ -199,3 +199,115 @@ impl Harness {
         self.wait_for(id, timeout_s, |d| d.status == status).await
     }
 }
+
+// ------------------------------------------------------------------ range server
+
+/// Behaviour of [`start_range_server`].
+#[derive(Clone, Copy, Debug)]
+pub struct RangeServerOpts {
+    pub size: usize,
+    /// Speed of every response (bytes/s per connection); 0 = unthrottled.
+    pub bytes_per_sec: u64,
+    /// Responses that start at offset 0 are this many times slower.
+    pub slow_zero_factor: u64,
+    /// Answer 503 while this many responses are already streaming (0 = no limit).
+    pub conn_limit: u32,
+}
+
+impl Default for RangeServerOpts {
+    fn default() -> Self {
+        Self { size: 1024 * 1024, bytes_per_sec: 0, slow_zero_factor: 1, conn_limit: 0 }
+    }
+}
+
+/// A ranged file server that throttles each connection and records
+/// concurrency, for testing multi-connection downloads.
+#[derive(Clone)]
+pub struct RangeServer {
+    pub addr: SocketAddr,
+    pub data: Arc<Vec<u8>>,
+    /// `(start, end_inclusive)` of every served or rejected request.
+    pub requests: Arc<Mutex<Vec<(u64, u64)>>>,
+    pub inflight: Arc<AtomicU32>,
+    pub max_inflight: Arc<AtomicU32>,
+    pub rejected: Arc<AtomicU32>,
+    opts: RangeServerOpts,
+}
+
+impl RangeServer {
+    pub fn url(&self, path: &str) -> String {
+        format!("http://{}{}", self.addr, path)
+    }
+    pub fn requests(&self) -> Vec<(u64, u64)> {
+        self.requests.lock().clone()
+    }
+    pub fn inflight(&self) -> u32 {
+        self.inflight.load(Ordering::SeqCst)
+    }
+}
+
+struct InflightGuard(Arc<AtomicU32>);
+
+impl Drop for InflightGuard {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn range_response(s: &RangeServer, h: &HeaderMap) -> Response<Body> {
+    let len = s.data.len() as u64;
+    let (start, end) = parse_range(h, len).unwrap_or((0, len - 1));
+    s.requests.lock().push((start, end));
+    let now = s.inflight.fetch_add(1, Ordering::SeqCst) + 1;
+    if s.opts.conn_limit > 0 && now > s.opts.conn_limit {
+        s.inflight.fetch_sub(1, Ordering::SeqCst);
+        s.rejected.fetch_add(1, Ordering::SeqCst);
+        return Response::builder().status(503).body(Body::empty()).unwrap();
+    }
+    s.max_inflight.fetch_max(now, Ordering::SeqCst);
+    let guard = Arc::new(InflightGuard(s.inflight.clone()));
+    let ranged = h.contains_key("range");
+    let slice = s.data[start as usize..=end as usize].to_vec();
+    let mut bps = s.opts.bytes_per_sec;
+    if start == 0 {
+        bps /= s.opts.slow_zero_factor.max(1);
+    }
+    let chunk = 16 * 1024;
+    let begun = tokio::time::Instant::now();
+    let chunks: Vec<Vec<u8>> = slice.chunks(chunk).map(|c| c.to_vec()).collect();
+    let stream = futures::stream::iter(chunks.into_iter().enumerate()).then(move |(i, c)| {
+        // The body holds the guard for as long as it is alive.
+        let g = guard.clone();
+        let at = if bps == 0 { begun } else { begun + Duration::from_secs_f64(((i + 1) * chunk) as f64 / bps as f64) };
+        async move {
+            tokio::time::sleep_until(at).await;
+            drop(g);
+            Ok::<_, std::io::Error>(bytes::Bytes::from(c))
+        }
+    });
+    let mut b = Response::builder()
+        .status(if ranged { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK })
+        .header("content-length", (end - start + 1).to_string())
+        .header("accept-ranges", "bytes")
+        .header("etag", "\"r1\"");
+    if ranged {
+        b = b.header("content-range", format!("bytes {start}-{end}/{len}"));
+    }
+    b.body(Body::from_stream(stream)).unwrap()
+}
+
+pub async fn start_range_server(opts: RangeServerOpts) -> RangeServer {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let srv = RangeServer {
+        addr: listener.local_addr().unwrap(),
+        data: Arc::new(payload(opts.size)),
+        requests: Default::default(),
+        inflight: Default::default(),
+        max_inflight: Default::default(),
+        rejected: Default::default(),
+        opts,
+    };
+    let app = Router::new().route("/r/:name", get(|State(s): State<RangeServer>, h: HeaderMap| async move { range_response(&s, &h) })).with_state(srv.clone());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    srv
+}

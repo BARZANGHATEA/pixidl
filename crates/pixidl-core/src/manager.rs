@@ -193,6 +193,20 @@ impl DownloadManager {
         self.inner.db.events(id)
     }
 
+    /// Segment layout of a multi-connection HTTP download: live while it
+    /// runs, otherwise what was persisted (`None` = not segmented).
+    pub fn segments(&self, id: &str) -> Result<Option<crate::engines::SegmentView>> {
+        if let Some(view) = self.inner.jobs.lock().get(id).and_then(|j| j.progress.segments()) {
+            return Ok(Some(view));
+        }
+        let Some(d) = self.inner.db.get_download(id)? else { return Ok(None) };
+        let segs = self.inner.db.load_segments(id)?;
+        Ok(match d.total_bytes {
+            Some(total) if !segs.is_empty() && d.engine == EngineKind::Http => Some(http::saved_segment_view(total, &segs)),
+            _ => None,
+        })
+    }
+
     pub fn stats(&self) -> Result<GlobalStats> {
         let list = self.list()?;
         let mut s = GlobalStats { total: list.len() as u32, ..Default::default() };
@@ -758,7 +772,7 @@ impl Inner {
             }
         }
         if let Some(c) = options.connections {
-            options.connections = Some(c.clamp(1, 16));
+            options.connections = Some(c.clamp(1, crate::settings::MAX_CONNECTIONS));
         }
         let t = now();
         let url_s = url.as_ref().map(|u| u.to_string()).unwrap_or_else(|| format!("torrent-file:{filename}"));

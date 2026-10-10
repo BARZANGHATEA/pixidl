@@ -181,7 +181,11 @@
     "no": "خیر",
     "unknown": "نامشخص",
     "scheduleAt": "شروع در",
-    "clearSchedule": "حذف زمان‌بندی"
+    "clearSchedule": "حذف زمان‌بندی",
+    "segments": "بخش‌ها",
+    "segmentsCount": "{{count}} بخش",
+    "activeConnections": "اتصال‌های فعال: {{count}}",
+    "segmentMapLabel": "پیشرفت دانلود به تفکیک بخش: {{percent}}٪ از {{count}} بخش"
   },
   "history": {
     "title": "تاریخچه",
@@ -257,6 +261,7 @@
     "addFolder": "افزودن پوشه",
     "maxConcurrent": "حداکثر دانلود هم‌زمان",
     "connectionsPer": "تعداد اتصال برای هر دانلود",
+    "connectionsPerDesc": "۱ تا ۳۲. فایل‌های بزرگ به چند بخش تقسیم و هم‌زمان دانلود می‌شوند؛ اگر سرور اتصال کمتری بپذیرد، از اتصال‌های کمتری استفاده می‌شود.",
     "askDestination": "برای هر دانلود محل ذخیره پرسیده شود",
     "duplicate": "اگر فایل از قبل وجود داشت",
     "duplicateRename": "نگه داشتن هر دو (file (1).zip)",

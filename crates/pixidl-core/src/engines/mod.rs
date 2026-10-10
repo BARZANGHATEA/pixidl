@@ -15,7 +15,9 @@ use std::time::{Duration, Instant};
 
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch};
+use ts_rs::TS;
 
 use crate::db::Db;
 use crate::error::Result;
@@ -62,9 +64,40 @@ pub struct EngineProgress {
     pub seeds: Option<u32>,
 }
 
+/// One byte range of a segmented HTTP download, for the UI's segment map.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SegmentInfo {
+    #[ts(type = "number")]
+    pub start: u64,
+    /// Exclusive end offset.
+    #[ts(type = "number")]
+    pub end: u64,
+    /// Bytes received from `start` onwards.
+    #[ts(type = "number")]
+    pub downloaded: u64,
+    /// A connection is currently working on this segment.
+    pub active: bool,
+}
+
+/// Live layout of a multi-connection download.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SegmentView {
+    #[ts(type = "number")]
+    pub total: u64,
+    /// Sorted by `start`; together they cover `0..total`.
+    pub segments: Vec<SegmentInfo>,
+    /// Connections currently receiving data.
+    pub connections: u32,
+}
+
 #[derive(Default)]
 pub struct ProgressCell {
     inner: Mutex<EngineProgress>,
+    segments: Mutex<Option<SegmentView>>,
 }
 
 impl ProgressCell {
@@ -76,6 +109,13 @@ impl ProgressCell {
     }
     pub fn get(&self) -> EngineProgress {
         self.inner.lock().clone()
+    }
+    /// Segment layout published by the HTTP engine (`None` = single stream).
+    pub fn set_segments(&self, v: Option<SegmentView>) {
+        *self.segments.lock() = v;
+    }
+    pub fn segments(&self) -> Option<SegmentView> {
+        self.segments.lock().clone()
     }
 }
 

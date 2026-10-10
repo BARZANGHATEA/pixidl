@@ -44,9 +44,10 @@ async fn downloads_with_multiple_connections() {
     let bytes = std::fs::read(h.dir.path().join("big.bin")).unwrap();
     assert_eq!(bytes.len(), srv.state.data.len());
     assert_eq!(sha(&bytes), sha(&srv.state.data));
-    // Several ranged requests were made (probe + 4 segments).
+    // The first response serves segment 0; the other segments made their own ranged requests.
+    assert_eq!(srv.ranges()[0].as_deref(), Some("bytes=0-"));
     let ranged = srv.ranges().iter().filter(|r| r.as_deref().is_some_and(|r| r.contains('-') && !r.ends_with('-'))).count();
-    assert!(ranged >= 4, "expected segment requests, got {:?}", srv.ranges());
+    assert!(ranged >= 3, "expected segment requests, got {:?}", srv.ranges());
     assert!(h.mgr.db().load_segments(&d.id).unwrap().is_empty(), "segments cleared after completion");
 }
 
@@ -523,4 +524,180 @@ async fn checksum_is_verified() {
 
     let invalid = h.mgr.add(AddDownloadRequest { url: srv.url("/file/x.bin"), engine_options: EngineOptions { sha256: Some("abc".into()), ..Default::default() }, ..Default::default() }, AddSource::User).await;
     assert!(invalid.is_err());
+}
+
+// ------------------------------------------------------- segmented downloads
+
+const MIB: u64 = 1024 * 1024;
+
+/// Whether `offset` lies in a byte range the segments say is not on disk yet.
+fn in_missing_range(segs: &[pixidl_core::db::Segment], offset: u64) -> bool {
+    segs.iter().any(|s| offset >= s.start + s.downloaded && offset <= s.end_incl)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn idle_connections_steal_work_until_the_end() {
+    // 16 MiB over 4 connections at 2 MiB/s each, but the range starting at 0
+    // is 4x slower. A static split would leave one slow connection running
+    // alone for the last ~6 s (8 s total); with work stealing the three idle
+    // connections take over halves of the slow range.
+    let srv = start_range_server(RangeServerOpts { size: 16 * MIB as usize, bytes_per_sec: 2 * MIB, slow_zero_factor: 4, conn_limit: 0 }).await;
+    let h = harness_with(|s| s.connections_per_download = 4).await;
+    let t = Instant::now();
+    let d = h.mgr.add(req(srv.url("/r/steal.bin")), AddSource::User).await.unwrap();
+    let total = 16 * MIB;
+    let (mut late_inflight, mut max_segments, mut max_view_conns) = (0, 0, 0);
+    loop {
+        let cur = h.mgr.get(&d.id).unwrap().unwrap();
+        if cur.status == DownloadStatus::Completed {
+            break;
+        }
+        assert!(!matches!(cur.status, DownloadStatus::Failed), "{:?}", cur.error_message);
+        assert!(t.elapsed() < Duration::from_secs(30), "timeout");
+        if let Some(v) = h.mgr.segments(&d.id).unwrap() {
+            assert_eq!(v.total, total);
+            assert_eq!(v.segments.first().unwrap().start, 0);
+            assert_eq!(v.segments.last().unwrap().end, total);
+            assert!(v.segments.windows(2).all(|w| w[0].end == w[1].start), "segments must tile the file: {v:?}");
+            max_segments = max_segments.max(v.segments.len());
+            max_view_conns = max_view_conns.max(v.connections);
+        }
+        // Once the fast ranges are done and stealing has started, the idle
+        // connections must be working again (a static split drops to one).
+        if srv.requests().len() > 4 {
+            late_inflight = late_inflight.max(srv.inflight());
+        }
+        tokio::time::sleep(Duration::from_millis(30)).await;
+    }
+    let elapsed = t.elapsed();
+    let bytes = std::fs::read(h.dir.path().join("steal.bin")).unwrap();
+    assert_eq!(sha(&bytes), sha(&srv.data));
+    let reqs = srv.requests();
+    // All four connections ran at the same time …
+    assert!(srv.max_inflight.load(std::sync::atomic::Ordering::SeqCst) >= 4, "{reqs:?}");
+    assert!(max_view_conns >= 4, "segment view reported {max_view_conns} connections");
+    // … the first response was reused for the first range (no extra request) …
+    assert_eq!(reqs[0], (0, total - 1));
+    assert_eq!(reqs.iter().filter(|r| r.0 == 0).count(), 1, "{reqs:?}");
+    // … idle connections split ranges at new offsets …
+    let planned = [0, 4 * MIB, 8 * MIB, 12 * MIB];
+    let steals: Vec<_> = reqs.iter().filter(|r| !planned.contains(&r.0)).collect();
+    assert!(!steals.is_empty() && reqs.len() > 4, "no work was stolen: {reqs:?}");
+    assert!(max_segments > 4);
+    // … so several connections were busy again after the first ranges finished …
+    assert!(late_inflight >= 3, "only {late_inflight} connections active after stealing began");
+    // … and the slow range did not dominate the total time.
+    assert!(elapsed < Duration::from_millis(6500), "took {elapsed:?}; a static split needs ≥ 8 s");
+    assert!(h.mgr.db().load_segments(&d.id).unwrap().is_empty(), "segments cleared after completion");
+    assert!(h.mgr.segments(&d.id).unwrap().is_none());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connection_limit_reduces_connections_instead_of_failing() {
+    // The server answers 503 to a third concurrent connection.
+    let srv = start_range_server(RangeServerOpts { size: 8 * MIB as usize, bytes_per_sec: 2 * MIB, slow_zero_factor: 1, conn_limit: 2 }).await;
+    let h = harness_with(|s| s.connections_per_download = 4).await;
+    let d = h.mgr.add(req(srv.url("/r/limited.bin")), AddSource::User).await.unwrap();
+    let done = h.wait_for(&d.id, 30, |d| matches!(d.status, DownloadStatus::Completed | DownloadStatus::Failed)).await;
+    assert_eq!(done.status, DownloadStatus::Completed, "{:?} {:?}", done.error_message, done.error_detail);
+    assert_eq!(done.retry_count, 0, "no download-level retry was needed");
+    let bytes = std::fs::read(h.dir.path().join("limited.bin")).unwrap();
+    assert_eq!(sha(&bytes), sha(&srv.data));
+    assert!(srv.rejected.load(std::sync::atomic::Ordering::SeqCst) >= 1, "the limit was hit");
+    assert_eq!(srv.max_inflight.load(std::sync::atomic::Ordering::SeqCst), 2, "two connections ran in parallel");
+    assert!(done.connections < 4, "connection count reduced, got {}", done.connections);
+    let events = h.mgr.events(&d.id).unwrap();
+    let limit_events = events.iter().filter(|e| e.message.as_deref().unwrap_or("").contains("Server allows only")).count();
+    assert_eq!(limit_events, 1, "{events:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pause_and_resume_after_splits_keeps_file_intact() {
+    let srv = start_range_server(RangeServerOpts { size: 16 * MIB as usize, bytes_per_sec: 2 * MIB, slow_zero_factor: 4, conn_limit: 0 }).await;
+    let h = harness_with(|s| s.connections_per_download = 4).await;
+    let d = h.mgr.add(req(srv.url("/r/split-pause.bin")), AddSource::User).await.unwrap();
+    // Wait until idle connections have split ranges, then a little longer.
+    let t = Instant::now();
+    while h.mgr.segments(&d.id).unwrap().map_or(0, |v| v.segments.len()) <= 5 {
+        assert!(t.elapsed() < Duration::from_secs(20), "no split happened");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    h.mgr.pause(&d.id).unwrap();
+    let paused = h.wait_status(&d.id, DownloadStatus::Paused, 10).await;
+    let mut segs = h.mgr.db().load_segments(&d.id).unwrap();
+    segs.sort_by_key(|s| s.start);
+    assert!(segs.len() > 5, "{segs:?}");
+    assert!(pixidl_core::engines::http::segments_cover(&segs, 16 * MIB), "{segs:?}");
+    let on_disk: u64 = segs.iter().map(|s| s.downloaded).sum();
+    assert!(on_disk > 0 && on_disk < 16 * MIB && on_disk <= paused.downloaded_bytes, "{on_disk} vs {}", paused.downloaded_bytes);
+    let view = h.mgr.segments(&d.id).unwrap().expect("paused download keeps its segment map");
+    assert_eq!(view.connections, 0);
+    assert!(view.segments.iter().all(|s| !s.active));
+    let before = srv.requests().len();
+
+    h.mgr.resume(&d.id).unwrap();
+    h.wait_status(&d.id, DownloadStatus::Completed, 30).await;
+    let bytes = std::fs::read(h.dir.path().join("split-pause.bin")).unwrap();
+    assert_eq!(sha(&bytes), sha(&srv.data));
+    // After resuming, only bytes that were not on disk were requested.
+    let after = &srv.requests()[before..];
+    assert!(!after.is_empty());
+    for r in after {
+        assert!(in_missing_range(&segs, r.0), "re-requested committed data at {}: {segs:?}", r.0);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn resume_with_holes_refetches_only_uncommitted_bytes() {
+    // Persisted state as after a crash: some ranges complete, some partial,
+    // and garbage in the partial file wherever nothing was committed.
+    use pixidl_core::db::{Segment, Validators};
+    let total = 4 * MIB;
+    let srv = start_range_server(RangeServerOpts { size: total as usize, ..Default::default() }).await;
+    let h = harness_with(|s| s.connections_per_download = 4).await;
+    let d = h.mgr.add(AddDownloadRequest { url: srv.url("/r/holes.bin"), start_paused: true, ..Default::default() }, AddSource::User).await.unwrap();
+    let segs = vec![
+        Segment { idx: 0, start: 0, end_incl: MIB - 1, downloaded: MIB },
+        Segment { idx: 1, start: MIB, end_incl: 2 * MIB - 1, downloaded: 300_000 },
+        Segment { idx: 5, start: 2 * MIB, end_incl: 3 * MIB - 1, downloaded: 0 },
+        Segment { idx: 2, start: 3 * MIB, end_incl: 4 * MIB - 1, downloaded: MIB },
+    ];
+    let mut part = vec![0xAAu8; total as usize];
+    for s in &segs {
+        let (a, b) = (s.start as usize, (s.start + s.downloaded) as usize);
+        part[a..b].copy_from_slice(&srv.data[a..b]);
+    }
+    std::fs::write(h.dir.path().join("holes.bin.part"), &part).unwrap();
+    h.mgr.db().save_segments(&d.id, &segs).unwrap();
+    h.mgr.db().set_validators(&d.id, &Validators { etag: Some("\"r1\"".into()), last_modified: None }).unwrap();
+
+    h.mgr.resume(&d.id).unwrap();
+    h.wait_status(&d.id, DownloadStatus::Completed, 20).await;
+    let bytes = std::fs::read(h.dir.path().join("holes.bin")).unwrap();
+    assert_eq!(sha(&bytes), sha(&srv.data));
+    let reqs = srv.requests();
+    // The first request starts at the first missing byte and is reused for that range.
+    assert_eq!(reqs[0], (MIB + 300_000, total - 1));
+    for r in &reqs {
+        assert!(in_missing_range(&segs, r.0), "requested committed data at {}: {reqs:?}", r.0);
+    }
+}
+
+/// Throughput comparison; run with
+/// `cargo test -p pixidl-core --test http_lifecycle -- --ignored --nocapture benchmark`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "benchmark: takes about a minute"]
+async fn benchmark_one_vs_eight_connections() {
+    let srv = start_range_server(RangeServerOpts { size: 50 * MIB as usize, bytes_per_sec: MIB, slow_zero_factor: 1, conn_limit: 0 }).await;
+    for conns in [1u32, 8] {
+        let h = harness_with(|s| s.connections_per_download = conns).await;
+        let t = Instant::now();
+        let d = h.mgr.add(req(srv.url(&format!("/r/bench{conns}.bin"))), AddSource::User).await.unwrap();
+        h.wait_status(&d.id, DownloadStatus::Completed, 180).await;
+        let e = t.elapsed();
+        let bytes = std::fs::read(h.dir.path().join(format!("bench{conns}.bin"))).unwrap();
+        assert_eq!(sha(&bytes), sha(&srv.data));
+        println!("50 MiB at 1 MiB/s per connection, {conns} connection(s): {:.2} s ({:.2} MiB/s)", e.as_secs_f64(), 50.0 / e.as_secs_f64());
+    }
 }
