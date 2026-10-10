@@ -21,7 +21,8 @@ console.log(`> cargo ${args.join(" ")}`);
 execFileSync("cargo", args, { cwd: root, stdio: "inherit" });
 
 const profileDir = release ? "release" : "debug";
-const built = cross ? join(root, "target", triple, profileDir, `pixidl-native-host${ext}`) : join(root, "target", profileDir, `pixidl-native-host${ext}`);
+const targetDir = process.env.CARGO_TARGET_DIR || join(root, "target");
+const built = cross ? join(targetDir, triple, profileDir, `pixidl-native-host${ext}`) : join(targetDir, profileDir, `pixidl-native-host${ext}`);
 if (!existsSync(built)) throw new Error(`native host not found at ${built}`);
 const outDir = join(root, "src-tauri", "binaries");
 mkdirSync(outDir, { recursive: true });
