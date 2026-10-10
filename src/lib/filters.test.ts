@@ -21,6 +21,13 @@ describe("filters", () => {
     expect(selectVisible(list, { status: "all", scope: { kind: "category", name: "Videos" }, query: "", sort: "name" })).toEqual([b]);
   });
 
+  it("filters by queue scope", () => {
+    const q = makeDownload({ filename: "night.bin", queueId: "night" });
+    const withQueue = [...list, q];
+    expect(selectVisible(withQueue, { status: "all", scope: { kind: "queue", id: "night" }, query: "", sort: "name" })).toEqual([q]);
+    expect(selectVisible(withQueue, { status: "all", scope: { kind: "queue", id: "main" }, query: "", sort: "name" })).toHaveLength(4);
+  });
+
   it("searches filename, URL, category and status", () => {
     expect(matchesSearch(a, "UBUNTU")).toBe(true);
     expect(matchesSearch(d, "magnet")).toBe(true);

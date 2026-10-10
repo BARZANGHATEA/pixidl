@@ -14,7 +14,7 @@ use crate::settings::Settings;
 use crate::types::*;
 
 fn migrations() -> Migrations<'static> {
-    Migrations::new(vec![M::up(include_str!("../migrations/0001_initial.sql"))])
+    Migrations::new(vec![M::up(include_str!("../migrations/0001_initial.sql")), M::up(include_str!("../migrations/0002_queues.sql"))])
 }
 
 /// One segment of a multi-connection HTTP download.
@@ -67,6 +67,17 @@ pub struct Validators {
     pub last_modified: Option<String>,
 }
 
+fn row_to_queue(r: &Row<'_>) -> rusqlite::Result<Queue> {
+    Ok(Queue {
+        id: r.get(0)?,
+        name: r.get(1)?,
+        max_concurrent: r.get::<_, i64>(2)?.clamp(1, 20) as u32,
+        running: r.get::<_, i64>(3)? != 0,
+        sort_order: r.get(4)?,
+        created_at: r.get(5)?,
+    })
+}
+
 #[derive(Clone)]
 pub struct Db {
     conn: Arc<Mutex<Connection>>,
@@ -79,7 +90,7 @@ pub fn now() -> String {
 const COLUMNS: &str = "id, url, original_url, referrer, filename, save_dir, category, engine, status, priority, \
     queue_position, total_bytes, downloaded_bytes, speed_bps, upload_bps, eta_seconds, resumable, speed_limit_bps, \
     connections, error_kind, error_message, error_detail, retry_count, engine_options, peers, seeds, info_hash, \
-    title, thumbnail, created_at, started_at, completed_at, updated_at, scheduled_at, file_missing";
+    title, thumbnail, created_at, started_at, completed_at, updated_at, scheduled_at, file_missing, queue_id";
 
 fn row_to_download(r: &Row<'_>) -> rusqlite::Result<Download> {
     let engine: String = r.get(7)?;
@@ -122,6 +133,7 @@ fn row_to_download(r: &Row<'_>) -> rusqlite::Result<Download> {
         updated_at: r.get(32)?,
         scheduled_at: r.get(33)?,
         file_missing: r.get::<_, i64>(34)? != 0,
+        queue_id: r.get(35)?,
     })
 }
 
@@ -158,7 +170,7 @@ impl Db {
     pub fn insert_download(&self, d: &Download) -> Result<()> {
         let c = self.conn.lock();
         c.execute(
-            &format!("INSERT INTO downloads ({COLUMNS}) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35)"),
+            &format!("INSERT INTO downloads ({COLUMNS}) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36)"),
             params![
                 d.id, d.url, d.original_url, d.referrer, d.filename, d.save_dir, d.category,
                 d.engine.as_str(), d.status.as_str(), d.priority.as_i64(), d.queue_position,
@@ -168,7 +180,7 @@ impl Db {
                 d.error_kind.map(|k| k.as_str()), d.error_message, d.error_detail, d.retry_count as i64,
                 serde_json::to_string(&d.engine_options).unwrap_or_else(|_| "{}".into()),
                 d.peers.map(|v| v as i64), d.seeds.map(|v| v as i64), d.info_hash, d.title, d.thumbnail,
-                d.created_at, d.started_at, d.completed_at, d.updated_at, d.scheduled_at, d.file_missing as i64,
+                d.created_at, d.started_at, d.completed_at, d.updated_at, d.scheduled_at, d.file_missing as i64, d.queue_id,
             ],
         )?;
         Ok(())
@@ -182,7 +194,8 @@ impl Db {
              queue_position=?9, total_bytes=?10, downloaded_bytes=?11, speed_bps=?12, upload_bps=?13, eta_seconds=?14,
              resumable=?15, speed_limit_bps=?16, connections=?17, error_kind=?18, error_message=?19, error_detail=?20,
              retry_count=?21, engine_options=?22, peers=?23, seeds=?24, info_hash=?25, title=?26, thumbnail=?27,
-             started_at=?28, completed_at=?29, updated_at=?30, scheduled_at=?31, file_missing=?32, referrer=?33
+             started_at=?28, completed_at=?29, updated_at=?30, scheduled_at=?31, file_missing=?32, referrer=?33,
+             queue_id=?34
              WHERE id=?1",
             params![
                 d.id, d.url, d.filename, d.save_dir, d.category, d.engine.as_str(), d.status.as_str(),
@@ -193,6 +206,7 @@ impl Db {
                 serde_json::to_string(&d.engine_options).unwrap_or_else(|_| "{}".into()),
                 d.peers.map(|v| v as i64), d.seeds.map(|v| v as i64), d.info_hash, d.title, d.thumbnail,
                 d.started_at, d.completed_at, d.updated_at, d.scheduled_at, d.file_missing as i64, d.referrer,
+                d.queue_id,
             ],
         )?;
         Ok(())
@@ -303,6 +317,53 @@ impl Db {
         Ok(c.query_row("SELECT torrent_data FROM downloads WHERE id=?1", [id], |r| r.get::<_, Option<Vec<u8>>>(0))
             .optional()?
             .flatten())
+    }
+
+    // ---------------------------------------------------------------- queues
+
+    pub fn queues(&self) -> Result<Vec<Queue>> {
+        let c = self.conn.lock();
+        let mut st = c.prepare("SELECT id, name, max_concurrent, running, sort_order, created_at FROM queues ORDER BY sort_order, created_at")?;
+        let rows = st.query_map([], row_to_queue)?.collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    pub fn get_queue(&self, id: &str) -> Result<Option<Queue>> {
+        let c = self.conn.lock();
+        Ok(c.query_row("SELECT id, name, max_concurrent, running, sort_order, created_at FROM queues WHERE id=?1", [id], row_to_queue).optional()?)
+    }
+
+    pub fn insert_queue(&self, q: &Queue) -> Result<()> {
+        self.conn.lock().execute(
+            "INSERT INTO queues (id, name, max_concurrent, running, sort_order, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![q.id, q.name, q.max_concurrent, q.running, q.sort_order, q.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_queue(&self, q: &Queue) -> Result<()> {
+        self.conn.lock().execute(
+            "UPDATE queues SET name=?2, max_concurrent=?3, running=?4, sort_order=?5 WHERE id=?1",
+            params![q.id, q.name, q.max_concurrent, q.running, q.sort_order],
+        )?;
+        Ok(())
+    }
+
+    /// Deletes a queue row. The caller moves its downloads elsewhere first.
+    pub fn delete_queue(&self, id: &str) -> Result<bool> {
+        Ok(self.conn.lock().execute("DELETE FROM queues WHERE id=?1", [id])? > 0)
+    }
+
+    pub fn next_queue_sort_order(&self) -> Result<i64> {
+        Ok(self.conn.lock().query_row("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM queues", [], |r| r.get(0))?)
+    }
+
+    /// IDs of the downloads in a queue.
+    pub fn download_ids_in_queue(&self, queue_id: &str) -> Result<Vec<String>> {
+        let c = self.conn.lock();
+        let mut st = c.prepare("SELECT id FROM downloads WHERE queue_id=?1")?;
+        let ids = st.query_map([queue_id], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(ids)
     }
 
     // ---------------------------------------------------------------- segments
@@ -539,6 +600,7 @@ mod tests {
             updated_at: t,
             scheduled_at: None,
             file_missing: false,
+            queue_id: MAIN_QUEUE_ID.into(),
         }
     }
 
@@ -546,7 +608,43 @@ mod tests {
     fn migrations_are_valid() {
         assert!(migrations().validate().is_ok());
         let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.schema_version().unwrap(), 1);
+        assert_eq!(db.schema_version().unwrap(), 2);
+    }
+
+    #[test]
+    fn migration_moves_existing_downloads_to_main_queue() {
+        // A database created by version 1 of the schema, with one download.
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(vec![M::up(include_str!("../migrations/0001_initial.sql"))]).to_latest(&mut conn).unwrap();
+        conn.execute(
+            "INSERT INTO downloads (id, url, original_url, filename, save_dir, engine, status, created_at, updated_at)
+             VALUES ('old', 'https://e.com/a', 'https://e.com/a', 'a', '/tmp', 'http', 'paused', 'x', 'x')",
+            [],
+        )
+        .unwrap();
+        let db = Db::init(conn).unwrap();
+        assert_eq!(db.get_download("old").unwrap().unwrap().queue_id, MAIN_QUEUE_ID);
+        let queues = db.queues().unwrap();
+        assert_eq!(queues.len(), 1);
+        assert!(queues[0].is_main() && queues[0].running && queues[0].name.is_empty());
+    }
+
+    #[test]
+    fn queue_crud() {
+        let db = Db::open_in_memory().unwrap();
+        let mut q = Queue { id: "q1".into(), name: "Night".into(), max_concurrent: 1, running: true, sort_order: db.next_queue_sort_order().unwrap(), created_at: now() };
+        db.insert_queue(&q).unwrap();
+        q.running = false;
+        q.max_concurrent = 4;
+        db.update_queue(&q).unwrap();
+        assert_eq!(db.get_queue("q1").unwrap().unwrap(), q);
+        let mut d = sample("d");
+        d.queue_id = "q1".into();
+        db.insert_download(&d).unwrap();
+        assert_eq!(db.download_ids_in_queue("q1").unwrap(), vec!["d".to_string()]);
+        assert_eq!(db.get_download("d").unwrap().unwrap().queue_id, "q1");
+        assert!(db.delete_queue("q1").unwrap());
+        assert_eq!(db.queues().unwrap().len(), 1);
     }
 
     #[test]

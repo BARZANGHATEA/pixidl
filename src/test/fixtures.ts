@@ -40,6 +40,7 @@ export function makeDownload(over: Partial<Download> = {}): Download {
     updatedAt: new Date(2026, 0, 1).toISOString(),
     scheduledAt: null,
     fileMissing: false,
+    queueId: "main",
     ...over,
   };
 }

@@ -2,9 +2,10 @@
 import type { Download } from "./Download";
 import type { EngineKind } from "./EngineKind";
 import type { ProgressUpdate } from "./ProgressUpdate";
+import type { Queue } from "./Queue";
 import type { ToolSetup } from "./ToolSetup";
 
 /**
  * Events emitted by the manager. The Tauri shell forwards them to the UI.
  */
-export type ManagerEvent = { "type": "download_created", download: Download, } | { "type": "download_updated", download: Download, } | { "type": "download_progress", updates: Array<ProgressUpdate>, } | { "type": "download_completed", download: Download, } | { "type": "download_failed", download: Download, } | { "type": "download_removed", id: string, } | { "type": "queue_finished" } | { "type": "show_add_dialog", url: string, } | { "type": "engine_error", engine: EngineKind, message: string, } | { "type": "tool_setup", setup: ToolSetup, };
+export type ManagerEvent = { "type": "download_created", download: Download, } | { "type": "download_updated", download: Download, } | { "type": "download_progress", updates: Array<ProgressUpdate>, } | { "type": "download_completed", download: Download, } | { "type": "download_failed", download: Download, } | { "type": "download_removed", id: string, } | { "type": "queues_changed", queues: Array<Queue>, } | { "type": "queue_finished" } | { "type": "show_add_dialog", url: string, } | { "type": "engine_error", engine: EngineKind, message: string, } | { "type": "tool_setup", setup: ToolSetup, };

@@ -26,4 +26,8 @@ scheduledAt?: string,
 /**
  * Raw .torrent file content (base64) when adding a torrent file.
  */
-torrentBase64?: string, };
+torrentBase64?: string, 
+/**
+ * Queue to add the download to (`None` = the main queue).
+ */
+queueId?: string, };

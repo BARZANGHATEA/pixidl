@@ -385,6 +385,7 @@ async fn crash_recovery_resumes_from_disk() {
             updated_at: t,
             scheduled_at: None,
             file_missing: false,
+            queue_id: MAIN_QUEUE_ID.into(),
         };
         db.insert_download(&d).unwrap();
         db.set_validators("crashed", &pixidl_core::db::Validators { etag: Some("\"v1\"".into()), last_modified: None }).unwrap();

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { AddDownloadDialog, extractUrls, isAcceptableUrl, isInside } from "./AddDownloadDialog";
 import { useUi } from "../stores/ui";
 import { useSettings } from "../stores/settings";
+import { useQueues } from "../stores/queues";
 import { api } from "../services/api";
 import type { Settings, UrlInspection } from "../types";
 
@@ -164,5 +165,22 @@ describe("AddDownloadDialog", () => {
     const urls = vi.mocked(api.addDownload).mock.calls.map((c) => c[0].url);
     expect(urls).toEqual(["https://www.youtube.com/watch?v=a", "https://www.youtube.com/watch?v=c"]);
     expect(vi.mocked(api.addDownload).mock.calls[0][0]).toMatchObject({ engine: "video", engineOptions: { formatId: "ba/b", audioOnly: true, audioFormat: "m4a" } });
+  });
+
+  it("adds to the chosen queue (defaulting to the queue being viewed)", async () => {
+    vi.mocked(api.inspectUrl).mockResolvedValue(inspection());
+    vi.mocked(api.addDownload).mockResolvedValue({ filename: "file.zip" } as never);
+    useQueues.setState({ queues: [{ id: "main", name: "", maxConcurrent: 20, running: true, sortOrder: 0, createdAt: "" }, { id: "night", name: "Night", maxConcurrent: 1, running: true, sortOrder: 1, createdAt: "" }] });
+    useUi.setState({ scope: { kind: "queue", id: "night" }, addDialog: { open: true, url: "https://example.com/file.zip", engine: null } });
+    render(<AddDownloadDialog />);
+    await waitFor(() => expect(screen.getByDisplayValue("file.zip")).toBeInTheDocument());
+    const select = screen.getByRole("combobox", { name: "Queue" });
+    expect(select).toHaveValue("night");
+    expect(screen.getByRole("option", { name: "Main queue" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(api.addDownload).toHaveBeenCalled());
+    expect(vi.mocked(api.addDownload).mock.calls[0][0].queueId).toBe("night");
+    useQueues.setState({ queues: [] });
+    useUi.setState({ scope: { kind: "all" } });
   });
 });

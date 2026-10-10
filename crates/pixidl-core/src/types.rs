@@ -315,6 +315,8 @@ pub struct Download {
     pub scheduled_at: Option<String>,
     /// Set when a completed download's file can no longer be found on disk.
     pub file_missing: bool,
+    /// The queue this download belongs to ([`MAIN_QUEUE_ID`] by default).
+    pub queue_id: String,
 }
 
 impl Download {
@@ -374,6 +376,39 @@ pub struct AddDownloadRequest {
     #[serde(default)]
     #[ts(optional)]
     pub torrent_base64: Option<String>,
+    /// Queue to add the download to (`None` = the main queue).
+    #[serde(default)]
+    #[ts(optional)]
+    pub queue_id: Option<String>,
+}
+
+/// The built-in queue that holds every download not placed in another queue.
+pub const MAIN_QUEUE_ID: &str = "main";
+
+/// A download queue. Downloads in a queue start in priority / queue order while
+/// both the global limit (`max_concurrent_downloads`) and the queue's own
+/// `max_concurrent` allow it, and only while the queue is running.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Queue {
+    pub id: String,
+    /// Display name. Empty for the main queue until the user renames it (the UI
+    /// then shows its translated default name).
+    pub name: String,
+    /// 1–20 downloads of this queue may run at the same time.
+    pub max_concurrent: u32,
+    /// A stopped queue starts nothing new.
+    pub running: bool,
+    #[ts(type = "number")]
+    pub sort_order: i64,
+    pub created_at: String,
+}
+
+impl Queue {
+    pub fn is_main(&self) -> bool {
+        self.id == MAIN_QUEUE_ID
+    }
 }
 
 /// Progress snapshot for one download, emitted in throttled batches.
@@ -409,6 +444,8 @@ pub enum ManagerEvent {
     DownloadCompleted { download: Download },
     DownloadFailed { download: Download },
     DownloadRemoved { id: String },
+    /// A queue was created, renamed, started, stopped, changed or deleted.
+    QueuesChanged { queues: Vec<Queue> },
     QueueFinished,
     /// A browser extension asked to open the Add dialog for this URL.
     ShowAddDialog { url: String },

@@ -149,6 +149,71 @@ pub fn clear_history(state: State<'_, AppState>) -> CmdResult<()> {
 }
 
 #[tauri::command]
+pub async fn clear_completed_downloads(state: State<'_, AppState>) -> CmdResult<u32> {
+    // Files are always kept: this only tidies the list.
+    Ok(state.mgr.clear_completed(false).await? as u32)
+}
+
+// ------------------------------------------------------------------ selection (bulk) actions
+
+#[tauri::command]
+pub fn resume_downloads(state: State<'_, AppState>, ids: Vec<String>) -> CmdResult<()> {
+    Ok(state.mgr.resume_many(&ids)?)
+}
+
+#[tauri::command]
+pub fn pause_downloads(state: State<'_, AppState>, ids: Vec<String>) -> CmdResult<()> {
+    Ok(state.mgr.pause_many(&ids)?)
+}
+
+#[tauri::command]
+pub async fn remove_downloads(state: State<'_, AppState>, ids: Vec<String>, delete_files: bool) -> CmdResult<()> {
+    Ok(state.mgr.remove_many(&ids, delete_files).await?)
+}
+
+#[tauri::command]
+pub fn move_to_queue(state: State<'_, AppState>, ids: Vec<String>, queue_id: String) -> CmdResult<()> {
+    Ok(state.mgr.move_to_queue(&ids, &queue_id)?)
+}
+
+// ------------------------------------------------------------------ queues
+
+#[tauri::command]
+pub fn list_queues(state: State<'_, AppState>) -> CmdResult<Vec<Queue>> {
+    Ok(state.mgr.queues()?)
+}
+
+#[tauri::command]
+pub fn create_queue(state: State<'_, AppState>, name: String, max_concurrent: u32) -> CmdResult<Queue> {
+    Ok(state.mgr.create_queue(&name, max_concurrent)?)
+}
+
+#[tauri::command]
+pub fn rename_queue(state: State<'_, AppState>, id: String, name: String) -> CmdResult<()> {
+    Ok(state.mgr.rename_queue(&id, &name)?)
+}
+
+#[tauri::command]
+pub fn set_queue_max_concurrent(state: State<'_, AppState>, id: String, max_concurrent: u32) -> CmdResult<()> {
+    Ok(state.mgr.set_queue_max_concurrent(&id, max_concurrent)?)
+}
+
+#[tauri::command]
+pub fn delete_queue(state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    Ok(state.mgr.delete_queue(&id)?)
+}
+
+#[tauri::command]
+pub fn start_queue(state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    Ok(state.mgr.start_queue(&id)?)
+}
+
+#[tauri::command]
+pub fn stop_queue(state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    Ok(state.mgr.stop_queue(&id)?)
+}
+
+#[tauri::command]
 pub fn verify_files(state: State<'_, AppState>) -> CmdResult<()> {
     Ok(state.mgr.verify_completed()?)
 }

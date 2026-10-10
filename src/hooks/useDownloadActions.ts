@@ -25,6 +25,7 @@ export function useDownloadActions() {
     setLimit: (d: Download, limit: number | null) => run(() => api.setDownloadLimit(d.id, limit)),
     schedule: (d: Download, at: string | null) => run(() => api.scheduleDownload(d.id, at)),
     reorder: (ids: string[]) => run(() => api.reorderQueue(ids)),
+    moveToQueue: (d: Download, queueId: string) => run(() => api.moveToQueue([d.id], queueId)),
     copyUrl: (d: Download) =>
       run(async () => {
         await navigator.clipboard.writeText(d.originalUrl.startsWith("torrent-file:") ? d.filename : d.originalUrl);

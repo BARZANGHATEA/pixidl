@@ -2,7 +2,7 @@ import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle, ArrowDown, ArrowUp, CheckCircle2, Clock, Copy, FolderOpen, Info, MoreVertical, Pause, Play,
-  RotateCcw, Trash2, Users, XCircle, ExternalLink, ChevronsUp, ChevronsDown, Gauge,
+  RotateCcw, Trash2, Users, XCircle, ExternalLink, ChevronsUp, ChevronsDown, Gauge, ListOrdered,
 } from "lucide-react";
 import type { Download } from "../types";
 import { FileIcon } from "./FileIcon";
@@ -11,6 +11,10 @@ import { Menu, type MenuEntry } from "./Menu";
 import { formatBytes, formatEta, formatPercent, formatRelative, formatSpeed, percent } from "../lib/format";
 import { useDownloadActions } from "../hooks/useDownloadActions";
 import { useUi } from "../stores/ui";
+import { queueName, useQueues } from "../stores/queues";
+
+/** How a row was clicked for selection: toggle it, or extend a range to it (Shift). */
+export type SelectHow = "toggle" | "range";
 
 function tone(d: Download): BarTone {
   switch (d.status) {
@@ -29,12 +33,27 @@ function tone(d: Download): BarTone {
   }
 }
 
-export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Download; onMove?: (dir: -1 | 1) => void }) {
+export const DownloadRow = memo(function DownloadRow({
+  d,
+  onMove,
+  selected = false,
+  selecting = false,
+  onSelect,
+}: {
+  d: Download;
+  onMove?: (dir: -1 | 1) => void;
+  selected?: boolean;
+  /** At least one row is selected: a plain click toggles the row. */
+  selecting?: boolean;
+  onSelect?: (id: string, how: SelectHow) => void;
+}) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const a = useDownloadActions();
   const showDetails = useUi((s) => s.showDetails);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const queues = useQueues((s) => s.queues);
+  const queueStopped = queues.some((q) => q.id === d.queueId && !q.running);
   const p = d.status === "completed" ? 100 : percent(d.downloadedBytes, d.totalBytes);
   const running = d.status === "downloading" || d.status === "preparing";
   const sizeLine =
@@ -67,7 +86,9 @@ export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Downloa
             ? t("status.scheduled", { time: new Intl.DateTimeFormat(lang, { dateStyle: "short", timeStyle: "short" }).format(new Date(d.scheduledAt)) })
             : d.retryCount > 0
               ? `${t("status.retrying", { count: d.retryCount })} · ${errorText ?? ""}`
-              : t("status.queued")}
+              : queueStopped
+                ? `${t("status.queued")} · ${t("queues.waitingStopped")}`
+                : t("status.queued")}
         </span>
       );
       break;
@@ -117,6 +138,13 @@ export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Downloa
     entries.push({ label: t("actions.moveUp"), icon: <ChevronsUp />, onSelect: () => onMove(-1) });
     entries.push({ label: t("actions.moveDown"), icon: <ChevronsDown />, onSelect: () => onMove(1) });
   }
+  if (queues.length > 1) {
+    entries.push({ heading: t("queues.moveTo") });
+    for (const q of queues) {
+      if (q.id !== d.queueId) entries.push({ label: queueName(q, t), icon: <ListOrdered />, onSelect: () => a.moveToQueue(d, q.id) });
+    }
+    entries.push("separator");
+  }
   entries.push({ label: t("actions.copyUrl"), icon: <Copy />, onSelect: () => a.copyUrl(d) });
   entries.push({ label: t("actions.details"), icon: <Info />, onSelect: () => showDetails(d.id) });
   if (d.status !== "completed" && d.status !== "cancelled") entries.push({ label: t("actions.speedLimit"), icon: <Gauge />, onSelect: () => showDetails(d.id) });
@@ -128,7 +156,7 @@ export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Downloa
 
   return (
     <div
-      className="drow"
+      className={`drow${selected ? " selected" : ""}`}
       role="listitem"
       aria-label={`${d.filename}, ${t(`status.${d.status}`)}${p !== null ? `, ${formatPercent(p)}` : ""}`}
       data-status={d.status}
@@ -137,8 +165,32 @@ export const DownloadRow = memo(function DownloadRow({ d, onMove }: { d: Downloa
         e.preventDefault();
         openMenuAt(e.clientX, e.clientY);
       }}
+      onMouseDown={(e) => {
+        // Shift+click selects a range, not text.
+        if (e.shiftKey && onSelect) e.preventDefault();
+      }}
+      onClick={(e) => {
+        if (!onSelect || (e.target as HTMLElement).closest("button, a, input, select, textarea, label, .menu")) return;
+        if (e.shiftKey) onSelect(d.id, "range");
+        else if (e.ctrlKey || e.metaKey || selecting) onSelect(d.id, "toggle");
+      }}
     >
-      <FileIcon download={d} />
+      <div className="drow-icon">
+        <FileIcon download={d} />
+        {onSelect && (
+          <input
+            type="checkbox"
+            className="drow-check"
+            checked={selected}
+            aria-label={t("bulk.selectRow", { name: d.filename })}
+            onChange={() => {}}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(d.id, e.shiftKey ? "range" : "toggle");
+            }}
+          />
+        )}
+      </div>
       <div style={{ minWidth: 0 }}>
         <div className="dname truncate" title={d.title ?? d.filename}>{d.filename}</div>
         <div className="dsub">{sizeLine}</div>

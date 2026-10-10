@@ -2,7 +2,7 @@
 import type { Download, DownloadStatus, EngineKind } from "../types";
 
 export type StatusFilter = "all" | "active" | "completed" | "failed";
-export type Scope = { kind: "all" } | { kind: "engine"; engine: EngineKind } | { kind: "category"; name: string };
+export type Scope = { kind: "all" } | { kind: "engine"; engine: EngineKind } | { kind: "category"; name: string } | { kind: "queue"; id: string };
 export type SortKey = "newest" | "oldest" | "name" | "size" | "progress" | "speed";
 
 export const ACTIVE_STATUSES: DownloadStatus[] = ["queued", "preparing", "downloading", "paused"];
@@ -23,6 +23,7 @@ export function matchesStatus(d: Download, f: StatusFilter): boolean {
 export function matchesScope(d: Download, s: Scope): boolean {
   if (s.kind === "all") return true;
   if (s.kind === "engine") return d.engine === s.engine;
+  if (s.kind === "queue") return d.queueId === s.id;
   return d.category === s.name;
 }
 

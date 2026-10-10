@@ -451,3 +451,30 @@ textarea.url-input { height: auto; min-height: 38px; padding: 9px 12px; resize: 
 .sb-limit:hover { background: var(--surface-hover); color: var(--text); }
 .sb-limit.on { color: var(--accent); background: var(--accent-soft); }
 .sb-limit svg { width: 13px; height: 13px; }
+
+/* ------------------------------------------------------------------ queues & selection */
+.nav-queue { position: relative; display: flex; flex-direction: column; }
+.nav-queue .nav-item .truncate { flex: 1; }
+.nav-queue[data-stopped="true"] .nav-item:not([aria-current="true"]) { color: var(--text-2); }
+.nav-queue .nav-more { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; opacity: 0; }
+.nav-queue .nav-more svg { width: 16px; height: 16px; }
+.nav-queue:hover .nav-more, .nav-queue:focus-within .nav-more, .nav-queue .nav-more[aria-expanded="true"] { opacity: 1; }
+.nav-queue:hover .count, .nav-queue:focus-within .count { visibility: hidden; }
+.nav-add { color: var(--text-2); }
+
+.drow-icon { position: relative; width: 44px; }
+.drow-check {
+  position: absolute; top: -6px; inset-inline-start: -6px; width: 18px; height: 18px; margin: 0;
+  accent-color: var(--accent); cursor: pointer; opacity: 0; transition: opacity .12s ease;
+}
+.drow:hover .drow-check, .drow-check:focus-visible, .drow-check:checked, .list.selecting .drow-check { opacity: 1; }
+.list.selecting .drow { cursor: default; user-select: none; }
+.drow.selected:hover { background: color-mix(in srgb, var(--accent-soft) 85%, var(--surface)); }
+
+.selbar { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 4px 28px; border-bottom: 1px solid var(--border); }
+.selbar.active { background: var(--accent-soft); }
+.selbar .spacer { flex: 1; }
+.selbar-all { display: inline-flex; align-items: center; gap: 10px; padding-inline-start: 10px; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.selbar.active .selbar-all { color: var(--accent); font-weight: 600; }
+.selbar-all input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.selbar .btn.danger-text { color: var(--danger); }
