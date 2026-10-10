@@ -14,6 +14,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { AboutPage } from "./pages/AboutPage";
 import { ExtensionsPage } from "./pages/ExtensionsPage";
+import { UpdatesPage } from "./pages/UpdatesPage";
 import { FirstRun } from "./pages/FirstRun";
 import { useUi } from "./stores/ui";
 import { useSettings } from "./stores/settings";
@@ -132,6 +133,7 @@ export default function App() {
         {view === "extensions" && <ExtensionsPage />}
         {view === "settings" && <SettingsPage />}
         {view === "about" && <AboutPage />}
+        {view === "updates" && <UpdatesPage />}
         <StatusBar />
       </main>
       {addOpen && <AddDownloadDialog />}

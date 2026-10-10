@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CircleArrowUp, ExternalLink } from "lucide-react";
 import { api } from "../services/api";
+import { useUi } from "../stores/ui";
+import { REPO_URL } from "../stores/updates";
 import type { AppInfo, EngineStatus } from "../types";
 
 export function AboutPage() {
   const { t } = useTranslation();
+  const setView = useUi((s) => s.setView);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [engines, setEngines] = useState<EngineStatus | null>(null);
   const [licenses, setLicenses] = useState<string | null>(null);
@@ -41,6 +45,16 @@ export function AboutPage() {
 
           <h2 style={{ fontSize: 15, margin: "8px 0 0" }}>{t("about.updates")}</h2>
           <p className="muted" style={{ margin: 0 }}>{t("about.updatesNote")}</p>
+          <div className="row" style={{ flexWrap: "wrap" }}>
+            <button className="btn" onClick={() => setView("updates")}>
+              <CircleArrowUp aria-hidden="true" />
+              {t("about.openUpdates")}
+            </button>
+            <button className="btn" onClick={() => void api.openProjectPage(REPO_URL).catch(() => {})}>
+              <ExternalLink aria-hidden="true" />
+              {t("about.repository")}
+            </button>
+          </div>
 
           <h2 style={{ fontSize: 15, margin: "8px 0 0" }}>{t("about.licenses")}</h2>
           {licenses === null ? (
