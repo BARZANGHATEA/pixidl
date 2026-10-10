@@ -32,6 +32,7 @@ bytes = "1"
 directories = "5"
 base64 = "0.22"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+semver = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

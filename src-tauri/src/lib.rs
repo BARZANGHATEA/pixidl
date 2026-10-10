@@ -11,6 +11,7 @@ mod logging;
 mod power;
 mod state;
 mod tray;
+mod updates;
 
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -189,6 +190,9 @@ pub fn run() {
             clipboard::spawn(handle.clone());
             let h = handle.clone();
             tauri::async_runtime::spawn(async move { apply_browser_integration(&h).await });
+            // App updates from GitHub releases.
+            app.manage(updates::UpdaterState::default());
+            updates::spawn_background_checks(handle.clone());
 
             if let Some(w) = app.get_webview_window("main") {
                 fit_to_screen(&w);
@@ -265,6 +269,13 @@ pub fn run() {
             commands::reveal_path,
             commands::install_deno,
             commands::probe_links,
+            // app updates
+            commands::get_update_status,
+            commands::check_for_updates,
+            commands::download_update,
+            commands::cancel_update_download,
+            commands::install_update,
+            commands::open_project_page,
         ])
         .build(tauri::generate_context!())
         .expect("error while building pixidl")

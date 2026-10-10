@@ -19,6 +19,7 @@ pub mod security;
 pub mod settings;
 pub mod tools;
 pub mod types;
+pub mod updater;
 
 pub use error::{DownloadError, Result};
 pub const APP_NAME: &str = "pixidl";

@@ -139,6 +139,12 @@ pub struct Settings {
 
     // Scheduler
     pub schedule: ScheduleSettings,
+
+    // Updates
+    /// Check the project's GitHub releases for a newer version once a day.
+    pub auto_check_updates: bool,
+    /// Offer pre-releases (beta / rc builds) as updates.
+    pub include_prereleases: bool,
 }
 
 impl Default for Settings {
@@ -182,6 +188,8 @@ impl Default for Settings {
             torrent_enable_dht: true,
             torrent_seed_after_completion: false,
             schedule: ScheduleSettings::default(),
+            auto_check_updates: true,
+            include_prereleases: false,
         }
     }
 }
@@ -374,6 +382,18 @@ mod tests {
         assert_eq!(back.language, "fa");
         assert_eq!(back.theme, Theme::System);
         assert_eq!(back.retry_count, 3);
+    }
+
+    #[test]
+    fn update_settings_default_when_missing() {
+        // Settings saved by 1.0 have no update keys.
+        let mut pairs = Settings::default().to_pairs();
+        pairs.retain(|(k, _)| k != "autoCheckUpdates" && k != "includePrereleases");
+        let s = Settings::from_pairs(pairs);
+        assert!(s.auto_check_updates);
+        assert!(!s.include_prereleases);
+        let old: Settings = serde_json::from_str(r#"{"language":"fa"}"#).unwrap();
+        assert!(old.auto_check_updates && !old.include_prereleases);
     }
 
     #[test]

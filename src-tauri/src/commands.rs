@@ -485,3 +485,38 @@ pub fn reveal_path(app: AppHandle, state: State<'_, AppState>, path: String) -> 
     let r = if p.is_dir() { app.opener().open_path(p.to_string_lossy(), None::<&str>) } else { app.opener().reveal_item_in_dir(&p) };
     r.map_err(|e| CommandError { kind: ErrorKind::Filesystem, message: "Could not open the folder".into(), detail: Some(e.to_string()) })
 }
+
+// ---------------------------------------------------------------- app updates (see updates.rs)
+
+#[tauri::command]
+pub fn get_update_status(app: AppHandle) -> crate::updates::UpdateStatus {
+    crate::updates::status(&app)
+}
+
+#[tauri::command]
+pub async fn check_for_updates(app: AppHandle) -> CmdResult<crate::updates::UpdateStatus> {
+    crate::updates::check(&app).await?;
+    Ok(crate::updates::status(&app))
+}
+
+/// Resolves once the installer is downloaded and verified; progress arrives
+/// on the `pixidl://update` channel.
+#[tauri::command]
+pub async fn download_update(app: AppHandle) -> CmdResult<()> {
+    crate::updates::download(&app).await
+}
+
+#[tauri::command]
+pub fn cancel_update_download(app: AppHandle) -> bool {
+    crate::updates::cancel_download(&app)
+}
+
+#[tauri::command]
+pub fn install_update(app: AppHandle) -> CmdResult<()> {
+    crate::updates::install(&app)
+}
+
+#[tauri::command]
+pub fn open_project_page(app: AppHandle, url: Option<String>) -> CmdResult<()> {
+    crate::updates::open_page(&app, url)
+}
