@@ -305,7 +305,7 @@
     "message": "دکمهٔ دانلود برای پیوندهای انتخاب‌شده"
   },
   "optSelectionButtonHint": {
-    "message": "وقتی متنی شامل پیوند را انتخاب کنید، دکمهٔ کوچک pixidl کنارش ظاهر می‌شود."
+    "message": "وقتی متنی شامل پیوند یا نشانی وب را انتخاب کنید، دکمهٔ کوچک pixidl کنارش ظاهر می‌شود."
   },
   "optDetectLinks": {
     "message": "شناسایی پیوندهای دانلود"
@@ -329,16 +329,16 @@
     "message": "دانلودهای مرورگر"
   },
   "captureLabel": {
-    "message": "سپردن دانلودهای مرورگر به pixidl"
+    "message": "فرستادن دانلودهای مرورگر به pixidl"
   },
   "captureHint": {
-    "message": "دانلودهایی که در مرورگر شروع می‌کنید به pixidl سپرده می‌شوند. اگر pixidl نتواند دانلودی را بپذیرد، مرورگر طبق معمول آن را دانلود می‌کند. دانلودهای پنجره‌های خصوصی هرگز گرفته نمی‌شوند."
+    "message": "دانلودهایی که در مرورگر شروع می‌کنید مستقیم به pixidl می‌روند. اگر pixidl نتواند دانلودی را بپذیرد، مرورگر طبق معمول خودش آن را دانلود می‌کند. دانلودهای پنجره‌های خصوصی و دانلودهای blob: و data: هرگز گرفته نمی‌شوند. اگر می‌خواهید دانلودی در مرورگر بماند، هنگام کلیک روی پیوند کلید Alt را نگه دارید."
   },
   "minSizeLabel": {
-    "message": "کمترین اندازهٔ فایل (مگابایت)"
+    "message": "کمترین اندازهٔ فایل (کیلوبایت)"
   },
   "minSizeHint": {
-    "message": "فایل‌های کوچک‌تر در مرورگر می‌مانند. ۰ یعنی همهٔ اندازه‌ها."
+    "message": "فایل‌هایی که می‌دانیم کوچک‌ترند در مرورگر می‌مانند. ۰ یعنی همهٔ اندازه‌ها فرستاده شوند."
   },
   "optionsConnectionHeading": {
     "message": "اتصال"
@@ -378,5 +378,53 @@
   },
   "errUnknown": {
     "message": "مشکلی پیش آمد"
+  },
+  "captureNoticeLabel": {
+    "message": "نمایش پیام وقتی دانلودی به pixidl فرستاده می‌شود"
+  },
+  "captureNoticeHint": {
+    "message": "پیامی کوچک در گوشهٔ صفحه."
+  },
+  "skipTypesLabel": {
+    "message": "این نوع فایل‌ها در مرورگر بمانند"
+  },
+  "skipTypesHint": {
+    "message": "پسوند فایل‌ها را با ویرگول از هم جدا کنید، برای نمونه: jpg, png, pdf"
+  },
+  "excludedSitesLabel": {
+    "message": "در این سایت‌ها هرگز گرفته نشود"
+  },
+  "excludedSitesHint": {
+    "message": "در هر خط یک سایت، برای نمونه example.com (زیردامنه‌هایش هم شامل می‌شوند)."
+  },
+  "capturedToast": {
+    "message": "به pixidl فرستاده شد: $NAME$",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "setup.exe"
+      }
+    }
+  },
+  "popupCaptureLabel": {
+    "message": "فرستادن دانلودها به pixidl"
+  },
+  "popupCaptureHint": {
+    "message": "دانلودهای مرورگر مستقیم به برنامه می‌روند"
+  },
+  "popupSiteLabel": {
+    "message": "گرفتن دانلودها در $HOST$",
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "example.com"
+      }
+    }
+  },
+  "statusNotConnected": {
+    "message": "به pixidl وصل نیست"
+  },
+  "connHintInstall": {
+    "message": "برنامهٔ pixidl را نصب کنید، یا اگر نصب است آن را باز کنید."
   }
 }

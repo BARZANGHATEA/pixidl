@@ -18,11 +18,21 @@ function describePing(resp) {
   return showConnection("ok", t("statusConnected", [String(resp.app_version ?? "")]));
 }
 
+/** Sets a field unless the user is editing it right now. */
+function setValue(input, value) {
+  if (document.activeElement !== input) input.value = value;
+}
+
 async function render() {
   const settings = await loadSettings();
   for (const input of document.querySelectorAll("[data-setting]")) input.checked = settings[input.dataset.setting] === true;
-  $("min-size").value = String(settings.minSizeMb);
-  $("min-size").disabled = !settings.captureDownloads;
+  setValue($("min-size"), String(settings.minSizeKb));
+  setValue($("skip-types"), settings.captureSkipExtensions.join(", "));
+  setValue($("excluded-sites"), settings.captureExcludedSites.join("\n"));
+  // The capture options only matter while capturing is on.
+  for (const id of ["min-size", "skip-types", "excluded-sites"]) $(id).disabled = !settings.captureDownloads;
+  document.querySelector("[data-setting=captureNotice]").disabled = !settings.captureDownloads;
+  for (const row of document.querySelectorAll(".setting.sub")) row.classList.toggle("disabled", !settings.captureDownloads);
 }
 
 async function main() {
@@ -38,8 +48,16 @@ async function main() {
     });
   }
   $("min-size").addEventListener("change", async () => {
-    const saved = await saveSettings({ minSizeMb: $("min-size").value });
-    $("min-size").value = String(saved.minSizeMb);
+    const saved = await saveSettings({ minSizeKb: $("min-size").value === "" ? 0 : $("min-size").value });
+    $("min-size").value = String(saved.minSizeKb);
+  });
+  $("skip-types").addEventListener("change", async () => {
+    const saved = await saveSettings({ captureSkipExtensions: $("skip-types").value });
+    $("skip-types").value = saved.captureSkipExtensions.join(", ");
+  });
+  $("excluded-sites").addEventListener("change", async () => {
+    const saved = await saveSettings({ captureExcludedSites: $("excluded-sites").value.split(/[\s,]+/) });
+    $("excluded-sites").value = saved.captureExcludedSites.join("\n");
   });
 
   const cached = await cachedPing();

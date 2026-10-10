@@ -1,11 +1,11 @@
 # pixidl browser extension
 
-Sends links, media, YouTube videos and (optionally) browser downloads to the
+Sends browser downloads, links, media and YouTube videos to the
 **pixidl** desktop app. It talks to the app only through
 [Native Messaging](../docs/BROWSER_PROTOCOL.md) (host `com.pixidl.app`); it makes no
 network requests of its own.
 
-Version 2.0.0 · Manifest V3 · Chrome, Edge, Brave, Opera, Vivaldi and Firefox 128+.
+Version 2.1.0 · Manifest V3 · Chrome, Edge, Brave, Opera, Vivaldi and Firefox 128+.
 
 ## Build
 
@@ -77,13 +77,34 @@ selection button, link detection and YouTube button do not run.
 
 ## Features
 
-- **Selection button**: select text that contains links (or http(s)/magnet
-  addresses typed as text) and a small round pixidl button appears at the end of
-  the selection. It is transparent with a gray outline glyph and fills with the
-  app's accent color on hover, along with a count badge if there is more than one
-  link. One link is sent right away and confirmed with a small notice in the
-  bottom corner of the page. Several links open the picker. Escape, scrolling,
-  clicking elsewhere or clearing the selection hides it.
+- **Browser download capture** (on by default): a download started in the
+  browser goes straight to pixidl, and a small "Sent to pixidl" notice appears
+  in the page corner. pixidl must accept it first; if it cannot (app not
+  installed or not running, browser integration off, any error, or no answer in
+  25 s) the browser downloads the file as usual. In Chromium the download is
+  held in `downloads.onDeterminingFilename` while pixidl is asked, so nothing is
+  saved twice; Firefox has no such hold, so the download is cancelled at once
+  and started again in the browser if pixidl does not take it. Never captured:
+  private windows; `blob:`, `data:`, `file:`, `filesystem:` and extension URLs;
+  downloads started by an extension; files known to be smaller than the minimum
+  size (100 KB by default); file types and sites on the skip lists; and a link
+  clicked with **Alt** held. While the last ping failed less than 2 minutes ago,
+  downloads are not held at all. The popup has a capture switch and a
+  per-site switch.
+- **Selection button**: select text that holds a downloadable address and a
+  small round pixidl button appears at the end of the selection. An address is
+  an `<a href>` inside the selection, the link the selection sits in, or an
+  http(s), magnet or `www.` address typed as text (also inside `<input>` and
+  `<textarea>`, where only typed addresses count). Mouse drags,
+  double/triple-click and keyboard selections (Shift+arrows/End) all work. It is
+  transparent with a thin gray ring and fills with the app's accent color on
+  hover, along with a count badge if there is more than one link. One link is
+  sent right away and confirmed with a small notice in the bottom corner of the
+  page. Several links open the picker. It follows the selection while the page
+  scrolls, resizes or zooms; Escape, clicking elsewhere or clearing the
+  selection hides it. Tabs that were already open when the extension was
+  installed, updated, reloaded or enabled get the content script injected, so
+  no page reload is needed; a copy left over from before removes itself.
 - **Download detection**: the extension looks through links and media on each page
   for downloadable files: archives, disk images, installers, documents, video,
   audio, torrents, magnet links, images that a link points to, and anything with
@@ -109,10 +130,6 @@ selection button, link detection and YouTube button do not run.
 - **Popup**: connection status and app version, detected downloads, page actions,
   and the app's active downloads with progress and pause/resume/cancel
   (refreshed every 2 s while the popup is open).
-- **Browser download capture** (off by default): new browser downloads above a
-  minimum size go to pixidl. The browser download is cancelled only after pixidl
-  has accepted it. Private windows, `blob:` and `data:` downloads are never
-  captured.
 
 Every request carries `client: {browser, version}`, so the app's *Extensions*
 page can show which browser is connected. The background pings the app at
@@ -125,13 +142,23 @@ In the extension's options (also reachable from the popup's **Settings** link):
 
 | Setting | Default |
 |---|---|
+| Send browser downloads to pixidl | on |
+| Minimum file size (KB) | 100 |
+| Notice when a download goes to pixidl | on |
+| File types kept in the browser | none |
+| Sites never captured (subdomains included) | none |
 | Download button for selected links | on |
 | Detect download links | on |
 | Show the count on the toolbar icon | on |
 | Download button on YouTube | on |
-| Capture browser downloads (+ minimum size in MB) | off |
 
 Changes apply immediately to open tabs. **Test connection** pings the app.
+
+Stored options carry `settingsVersion` (2). Options from 2.0.x (no version) are
+migrated once: capture is turned on (it was opt-in in 2.0, and 2.0 stored every
+option whenever any one changed, so "never touched" cannot be told apart from
+"turned off"), and `minSizeMb` becomes `minSizeKb` (0, the old default, takes
+the new default of 100 KB). After that the user's choices are kept.
 
 ## Privacy and security
 
@@ -163,7 +190,28 @@ node browser-extension/build.mjs      # rebuild dist/
 
 The tests cover the pure helpers in `src/lib.js` and manifest generation. They
 also build both packages, read them back with a small ZIP reader, check locale
-parity and run `node --check` on every script.
+parity and run `node --check` on every script. `test/settings.test.mjs` covers
+URL extraction from selected text, settings defaults and migration, and the
+capture decision (what is captured and what stays in the browser).
+
+### End-to-end test (Chromium + Playwright)
+
+`e2e/run.mjs` loads `dist/chromium` into a real, headed Chromium with
+Playwright, serves `e2e/site/` locally and registers `e2e/fake-host.py` as the
+`com.pixidl.app` native host inside the test profile
+(`<profile>/NativeMessagingHosts/`). The fake host logs every request and
+answers according to a mode file (`ok`, `unavailable`, `add_fail`, `crash`). It
+drives real mouse and keyboard input to check the selection button (position,
+scrolling, zoom, RTL, text fields, Escape, a link drag without pointerup), the
+injection into tabs that stayed open while the extension was reloaded or
+disabled and enabled, download capture and every fallback, and the popup. It
+needs Playwright and a display (e.g. Xvfb):
+
+```sh
+node browser-extension/build.mjs
+DISPLAY=:99 node browser-extension/e2e/run.mjs --out /tmp/pixidl-shots
+# PLAYWRIGHT_MODULES=<folder with the playwright package>  CHROMIUM=<chrome binary>
+```
 
 ```
 browser-extension/
@@ -179,5 +227,6 @@ browser-extension/
     popup.*  picker.*  options.*  ui.css
     _locales/{en,fa}/messages.json
     icons/icon-{16,32,48,128}.png
-  test/
+  test/                 node --test unit and packaging tests
+  e2e/                  Playwright end-to-end test, test site, fake native host
 ```

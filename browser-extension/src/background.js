@@ -1,22 +1,25 @@
 // Background script (Chromium service worker / Firefox event page).
 // Owns the native-messaging calls made on behalf of content scripts, the
 // context menus, the toolbar badge, the picker window, the periodic ping and
-// the optional capture of browser downloads. Listeners are registered
-// synchronously at top level so the browser can wake the worker for them.
+// the capture of browser downloads. Listeners are registered synchronously at
+// top level so the browser can wake the worker for them.
 
 import { api, errorText, pingAndCache, cachedPing, send, t } from "./native.js";
-import { loadSettings } from "./settings.js";
+import { loadSettings, migrateStoredSettings } from "./settings.js";
 import {
+  BYPASS_TTL_MS,
   MAX_PAGE_LINKS,
   badgeText,
   basename,
   buildItem,
+  captureDecision,
   extractUrlsFromText,
   isHttpUrl,
-  meetsMinSize,
   normalizeEntries,
+  pingSummary,
   safeAccent,
   supportedUrl,
+  urlFileName,
 } from "./lib.js";
 
 const PING_ALARM = "pixidl-ping";
@@ -59,31 +62,60 @@ async function ensureAlarm() {
   }
 }
 
-/** Chromium does not run manifest content scripts in tabs that were already open. */
+/**
+ * Chromium runs manifest content scripts only in pages loaded after the
+ * extension started, so tabs that were open when it was installed, updated,
+ * reloaded or enabled again would get no selection button until reloaded.
+ * The content script ignores a second copy of itself.
+ */
 async function injectIntoOpenTabs() {
   if (isFirefox) return; // Firefox injects them into open tabs itself.
+  let tabs = [];
   try {
-    const tabs = await api.tabs.query({ url: ["http://*/*", "https://*/*"] });
-    for (const tab of tabs) {
-      if (tab.discarded) continue;
-      api.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }).catch(() => {});
-    }
+    tabs = await api.tabs.query({ url: ["http://*/*", "https://*/*"] });
   } catch {
-    // Not fatal: the script runs after the next reload of each tab.
+    return; // Not fatal: the script runs after the next reload of each tab.
   }
+  await Promise.all(
+    tabs
+      .filter((tab) => !tab.discarded && tab.id != null && tab.id >= 0)
+      .map((tab) => api.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }).catch(() => {})),
+  );
 }
 
-api.runtime.onInstalled.addListener(async (details) => {
+/**
+ * Runs once each time the extension starts (install, update, reload, enable,
+ * browser start). storage.session is emptied whenever the extension stops, so
+ * a service worker that merely wakes up again does not repeat the work.
+ */
+async function onExtensionStart() {
+  await migrateStoredSettings();
+  try {
+    const area = api.storage.session;
+    if (area) {
+      const { started } = await area.get("started");
+      if (started) return;
+      await area.set({ started: Date.now() });
+    }
+  } catch {
+    // Without session storage the work below simply runs again.
+  }
+  // Enabling the extension again fires neither onInstalled nor onStartup.
   await setupMenus();
   await ensureAlarm();
-  if (details.reason === "install" || details.reason === "update") injectIntoOpenTabs();
+  await injectIntoOpenTabs();
   pingAndCache();
+}
+
+api.runtime.onInstalled.addListener(async () => {
+  await migrateStoredSettings();
+  await setupMenus();
+  await ensureAlarm();
 });
 
 api.runtime.onStartup.addListener(async () => {
   await setupMenus();
   await ensureAlarm();
-  pingAndCache();
 });
 
 api.alarms.onAlarm.addListener((alarm) => {
@@ -376,6 +408,11 @@ async function handleMessage(msg, sender) {
       await paintBadge(tab.id, count, await loadSettings());
       return { success: true };
     }
+    case "pixidl:bypassCapture":
+      // Alt+click on a link: the browser keeps that download.
+      if (!tab) return null;
+      await addBypass(msg.url);
+      return { success: true };
     // From the popup.
     case "pixidl:reviewDetected":
       if (!fromExtensionPage(sender) || !Number.isInteger(msg.tabId)) return null;
@@ -399,33 +436,245 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true; // async response
 });
 
-// ---- Optional capture of browser downloads ---------------------------------------
-// pixidl is asked first; the browser download is cancelled only after pixidl
-// accepted it, so any failure leaves the browser to finish it as usual.
+// ---- Capturing browser downloads ---------------------------------------------------
+//
+// On by default: a download started in the browser goes to pixidl instead.
+// pixidl must accept it first; whenever it cannot (app missing, integration
+// off, any error or no answer in time) the browser keeps the download.
+//
+// Chromium: onDeterminingFilename holds the download before it can finish
+//   (its data waits in a temporary file), so pixidl is asked while nothing has
+//   been saved yet. Accepted: the browser copy is cancelled and erased.
+//   Otherwise the hold is released and the browser carries on as usual.
+// Firefox: there is no way to hold a download, so onCreated cancels it at once
+//   and, if pixidl does not take it, starts it again in the browser (that
+//   repeated download is marked as ours and never captured again).
 
-api.downloads.onCreated.addListener(async (item) => {
-  const settings = await loadSettings();
-  if (!settings.captureDownloads) return;
-  if (item.incognito || item.state !== "in_progress") return;
-  if (item.byExtensionId && item.byExtensionId === api.runtime.id) return;
-  // blob:, data:, file: and similar never leave the browser.
-  if (!isHttpUrl(item.url)) return;
-  const url = supportedUrl(isHttpUrl(item.finalUrl) ? item.finalUrl : item.url);
-  const size = item.totalBytes > 0 ? item.totalBytes : item.fileSize;
-  if (!meetsMinSize(size, settings.minSizeMb)) return;
+/** Longest wait for pixidl (the native host may first have to start the app, up to 20 s). */
+const CAPTURE_TIMEOUT_MS = 25 * 1000;
+const BYPASS_KEY = "captureBypass";
+const OWN_KEY = "ownDownloads";
+const OWN_TTL_MS = 60 * 1000;
 
-  const resp = await send("add_download", buildItem(url, { filename: basename(item.filename), referrer: item.referrer }));
-  if (!resp.success) {
-    notify(false, t("captureFallback", [errorText(resp.error)]));
-    return;
-  }
-  try {
-    await api.downloads.cancel(item.id);
-    await api.downloads.erase({ id: item.id });
-  } catch {
-    // The browser download already finished or was removed; nothing to undo.
-  }
-  notify(true, resp.filename || basename(item.filename) || url);
+let settingsCache = null;
+const currentSettings = () => (settingsCache ??= loadSettings());
+
+api.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && Object.keys(changes).some((key) => key !== "lastPing")) settingsCache = null;
 });
 
+/** A short-lived list in session storage: `[{url, until}]` with expired entries dropped. */
+async function readList(key) {
+  try {
+    const list = (await sessionArea().get(key))[key];
+    return Array.isArray(list) ? list.filter((e) => e && Number(e.until) > Date.now()) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function pushToList(key, url, ttl) {
+  const clean = supportedUrl(url);
+  if (!clean) return;
+  const list = (await readList(key)).slice(-50);
+  list.push({ url: clean, until: Date.now() + ttl });
+  try {
+    await sessionArea().set({ [key]: list });
+  } catch {
+    // Best effort.
+  }
+}
+
+const addBypass = (url) => pushToList(BYPASS_KEY, url, BYPASS_TTL_MS);
+
+let lastBackgroundPing = 0;
+/** Refreshes the cached ping now and then while pixidl looks unreachable. */
+function refreshPingSoon() {
+  if (Date.now() - lastBackgroundPing < 30 * 1000) return;
+  lastBackgroundPing = Date.now();
+  pingAndCache();
+}
+
+/** Remembers that pixidl could not be reached, so the next downloads are not held. */
+async function rememberUnreachable(resp) {
+  try {
+    const { lastPing } = await api.storage.local.get("lastPing");
+    await api.storage.local.set({ lastPing: { ...pingSummary(resp), accent_color: lastPing?.accent_color } });
+  } catch {
+    // Best effort.
+  }
+}
+
+async function decide(item) {
+  const [settings, ping, bypass, own] = await Promise.all([currentSettings(), cachedPing(), readList(BYPASS_KEY), readList(OWN_KEY)]);
+  const decision = captureDecision(item, { settings, ping, bypass, ownUrls: own.map((e) => e.url), now: Date.now() });
+  if (decision.reason === "app_unreachable") refreshPingSoon();
+  return { ...decision, settings };
+}
+
+function captureItem(item, url) {
+  // Chromium's item.filename is the suggested name here (a full path in Firefox).
+  const name = basename(item.filename) || urlFileName(url);
+  return buildItem(url, { filename: name, referrer: item.referrer });
+}
+
+async function activeTabId() {
+  try {
+    const [tab] = await api.tabs.query({ active: true, lastFocusedWindow: true });
+    return tab?.id;
+  } catch {
+    return undefined;
+  }
+}
+
+async function captureNotice(settings, ok, text) {
+  if (!settings.captureNotice) return;
+  await report(await activeTabId(), ok, text);
+}
+
+async function cancelAndErase(id) {
+  try {
+    await api.downloads.cancel(id);
+  } catch {
+    // Already finished or gone.
+  }
+  try {
+    await api.downloads.erase({ id });
+  } catch {
+    // Not in the list any more.
+  }
+}
+
+async function downloadState(id) {
+  try {
+    const [found] = await api.downloads.search({ id });
+    return found?.state ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sends one download to pixidl; resolves `{resp, late}` or `{timedOut: true}` after CAPTURE_TIMEOUT_MS. */
+function offerToApp(payload, onLateSuccess) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      resolve({ timedOut: true });
+    }, CAPTURE_TIMEOUT_MS);
+    send("add_download", payload).then((resp) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({ resp });
+      } else if (resp.success) {
+        onLateSuccess(resp);
+      }
+    });
+  });
+}
+
+async function onCaptureFailed(resp, settings) {
+  if (resp.error?.code === "app_unavailable" || resp.error?.code === "unauthorized") await rememberUnreachable(resp);
+  await captureNotice(settings, false, t("captureFallback", [errorText(resp.error)]));
+}
+
+/** Chromium: decide while the browser waits for a file name. */
+async function captureHeld(item, suggest) {
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    try {
+      suggest();
+    } catch {
+      // The download is already gone.
+    }
+  };
+  try {
+    const decision = await decide(item);
+    if (!decision.capture) return release();
+    const payload = captureItem(item, decision.url);
+    const outcome = await offerToApp(payload, async (resp) => {
+      // pixidl answered after the browser had been let go: it has the file
+      // now, so stop the browser's copy if it is still running.
+      if ((await downloadState(item.id)) === "in_progress") await cancelAndErase(item.id);
+      await captureNotice(decision.settings, true, t("capturedToast", [resp.filename || payload.filename || decision.url]));
+    });
+    if (outcome.timedOut) return release();
+    const { resp } = outcome;
+    if (!resp.success) {
+      release();
+      return onCaptureFailed(resp, decision.settings);
+    }
+    released = true; // never let this one finish in the browser
+    await cancelAndErase(item.id);
+    await captureNotice(decision.settings, true, t("capturedToast", [resp.filename || payload.filename || decision.url]));
+  } catch {
+    release();
+  }
+}
+
+/** Firefox: cancel first, then ask pixidl; start it again in the browser if pixidl does not take it. */
+async function captureCreated(item) {
+  const decision = await decide(item);
+  if (!decision.capture) return;
+  try {
+    await api.downloads.cancel(item.id);
+  } catch {
+    return; // finished already: the browser keeps it
+  }
+  if ((await downloadState(item.id)) === "complete") return;
+  const payload = captureItem(item, decision.url);
+  const outcome = await offerToApp(payload, () => {});
+  const resp = outcome.timedOut ? { success: false, error: { code: "internal", message: "pixidl did not answer in time" } } : outcome.resp;
+  if (resp.success) {
+    try {
+      await api.downloads.erase({ id: item.id });
+    } catch {
+      // Already removed.
+    }
+    await captureNotice(decision.settings, true, t("capturedToast", [resp.filename || payload.filename || decision.url]));
+    return;
+  }
+  await restartInBrowser(item);
+  await onCaptureFailed(resp, decision.settings);
+}
+
+async function restartInBrowser(item) {
+  const url = typeof item.url === "string" ? item.url : "";
+  if (!isHttpUrl(url)) return;
+  await pushToList(OWN_KEY, url, OWN_TTL_MS);
+  const options = { url, conflictAction: "uniquify", saveAs: false };
+  const name = basename(item.filename);
+  if (name) options.filename = name;
+  try {
+    await api.downloads.download(options);
+  } catch {
+    try {
+      delete options.filename;
+      await api.downloads.download(options);
+    } catch {
+      return;
+    }
+  }
+  try {
+    await api.downloads.erase({ id: item.id });
+  } catch {
+    // Keep the cancelled entry; the new one carries on.
+  }
+}
+
+if (api.downloads.onDeterminingFilename) {
+  api.downloads.onDeterminingFilename.addListener((item, suggest) => {
+    captureHeld(item, suggest);
+    return true; // suggest() is called asynchronously (or never, once pixidl took it)
+  });
+} else {
+  api.downloads.onCreated.addListener((item) => {
+    captureCreated(item).catch(() => {});
+  });
+}
+
 ensureAlarm();
+onExtensionStart();

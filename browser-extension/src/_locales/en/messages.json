@@ -305,7 +305,7 @@
     "message": "Download button for selected links"
   },
   "optSelectionButtonHint": {
-    "message": "When you select text that contains links, a small pixidl button appears next to it."
+    "message": "When you select text that contains links or web addresses, a small pixidl button appears next to it."
   },
   "optDetectLinks": {
     "message": "Detect download links"
@@ -329,16 +329,16 @@
     "message": "Browser downloads"
   },
   "captureLabel": {
-    "message": "Capture browser downloads"
+    "message": "Send browser downloads to pixidl"
   },
   "captureHint": {
-    "message": "Downloads you start in the browser are handed to pixidl. If pixidl cannot take one, the browser downloads it as usual. Private windows are never captured."
+    "message": "Downloads you start in the browser go straight to pixidl. If pixidl cannot take one, the browser downloads it as usual. Private windows, blob: and data: downloads are never captured. Hold Alt while clicking a link to keep that download in the browser."
   },
   "minSizeLabel": {
-    "message": "Minimum file size (MB)"
+    "message": "Minimum file size (KB)"
   },
   "minSizeHint": {
-    "message": "Smaller files stay in the browser. 0 captures every size."
+    "message": "Files known to be smaller stay in the browser. 0 sends every size."
   },
   "optionsConnectionHeading": {
     "message": "Connection"
@@ -378,5 +378,53 @@
   },
   "errUnknown": {
     "message": "Something went wrong"
+  },
+  "captureNoticeLabel": {
+    "message": "Show a notice when a download goes to pixidl"
+  },
+  "captureNoticeHint": {
+    "message": "A small message in the corner of the page."
+  },
+  "skipTypesLabel": {
+    "message": "Keep these file types in the browser"
+  },
+  "skipTypesHint": {
+    "message": "File extensions separated by commas, for example: jpg, png, pdf"
+  },
+  "excludedSitesLabel": {
+    "message": "Never capture on these sites"
+  },
+  "excludedSitesHint": {
+    "message": "One site per line, for example example.com (its subdomains are included)."
+  },
+  "capturedToast": {
+    "message": "Sent to pixidl: $NAME$",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "setup.exe"
+      }
+    }
+  },
+  "popupCaptureLabel": {
+    "message": "Send downloads to pixidl"
+  },
+  "popupCaptureHint": {
+    "message": "Browser downloads go straight to the app"
+  },
+  "popupSiteLabel": {
+    "message": "Capture on $HOST$",
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "example.com"
+      }
+    }
+  },
+  "statusNotConnected": {
+    "message": "Not connected to pixidl"
+  },
+  "connHintInstall": {
+    "message": "Install the pixidl app, or open it if it is already installed."
   }
 }

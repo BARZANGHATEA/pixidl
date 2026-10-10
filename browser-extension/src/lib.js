@@ -156,15 +156,17 @@ export function normalizeLinks(urls, options) {
 }
 
 /**
- * Finds http(s) and magnet URLs typed in plain text (e.g. the selected text).
- * Trailing punctuation that usually ends a sentence is not part of the URL.
+ * Finds http(s) and magnet URLs typed in plain text (e.g. the selected text),
+ * plus addresses written without a scheme that start with `www.` (read as
+ * https). Trailing punctuation that usually ends a sentence is not part of
+ * the URL. ftp:// and other schemes are ignored: pixidl does not take them.
  */
 export function extractUrlsFromText(text, limit = MAX_PAGE_LINKS) {
   if (typeof text !== "string" || !text) return [];
   const out = [];
-  const re = /(?:https?:\/\/|magnet:\?)[^\s<>"'`«»“”]+/gi;
+  const re = /(?:https?:\/\/|magnet:\?|(?<![\p{L}\p{N}_.@/:-])www\.(?=[\p{L}\p{N}-]+\.[\p{L}\p{N}]))[^\s<>"'`«»“”]+/giu;
   for (const match of text.matchAll(re)) {
-    let url = match[0];
+    let url = /^www\./i.test(match[0]) ? `https://${match[0]}` : match[0];
     for (;;) {
       const trimmed = url.replace(/[.,;:!?'"*،؛۔、。]+$/u, "");
       let next = trimmed;
@@ -433,37 +435,185 @@ export function detectBrowser({ userAgent = "", isFirefox = false, isBrave = fal
 
 // ---- Settings --------------------------------------------------------------------
 
-/** Stored options (storage.local). Capturing browser downloads is opt-in. */
+/**
+ * Version of the stored options. 1 (or missing) is 2.0.x, where capturing
+ * browser downloads was opt-in and the minimum size was in MB (`minSizeMb`).
+ */
+export const SETTINGS_VERSION = 2;
+/** Most entries kept in the per-site exclusion and file-type lists. */
+export const MAX_LIST_ENTRIES = 500;
+
+/** Stored options (storage.local). Browser downloads go to pixidl by default. */
 export const DEFAULT_SETTINGS = Object.freeze({
   selectionButton: true,
   detectLinks: true,
   showBadge: true,
   youtubeButton: true,
-  captureDownloads: false,
-  minSizeMb: 0,
+  captureDownloads: true,
+  /** Known sizes below this stay in the browser (0 = every size). */
+  minSizeKb: 100,
+  /** In-page notice (or system notification) when a download goes to pixidl. */
+  captureNotice: true,
+  /** Host names (and their subdomains) whose downloads are never captured. */
+  captureExcludedSites: Object.freeze([]),
+  /** File extensions (lower case, no dot) that stay in the browser. */
+  captureSkipExtensions: Object.freeze([]),
 });
 
-/** Coerces stored options into valid values. */
+/** Every storage.local key the settings are read from (including legacy ones). */
+export const SETTINGS_STORAGE_KEYS = Object.freeze([...Object.keys(DEFAULT_SETTINGS), "settingsVersion", "minSizeMb"]);
+
+/** `www.example.com` -> `example.com`; null when it is not a plain host name. */
+export function normalizeHost(input) {
+  let host = String(input ?? "").trim().toLowerCase();
+  if (!host) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//.test(host)) host = hostOf(host);
+  host = host.replace(/\.$/, "").replace(/^www\./, "");
+  if (!host || host.length > 253 || !/^[a-z0-9.-]+$|^\[[0-9a-f:.]+\]$/.test(host) || host.startsWith(".")) return null;
+  return host;
+}
+
+/** Whether `host` is one of `sites` or a subdomain of one. */
+export function hostMatches(host, sites) {
+  const h = String(host ?? "").toLowerCase().replace(/\.$/, "");
+  if (!h || !Array.isArray(sites)) return false;
+  return sites.some((site) => typeof site === "string" && site && (h === site || h.endsWith(`.${site}`) || h === `www.${site}`));
+}
+
+/** "zip, .ISO  exe" (or an array) -> ["zip", "iso", "exe"]. */
+export function parseExtensionList(input) {
+  const parts = Array.isArray(input) ? input : String(input ?? "").split(/[\s,;]+/);
+  const out = [];
+  for (const part of parts) {
+    const ext = String(part ?? "").trim().toLowerCase().replace(/^\*?\./, "");
+    if (/^[a-z0-9]{1,10}$/.test(ext) && !out.includes(ext)) out.push(ext);
+    if (out.length >= MAX_LIST_ENTRIES) break;
+  }
+  return out;
+}
+
+function sanitizeSites(list) {
+  const out = [];
+  for (const entry of Array.isArray(list) ? list : []) {
+    const host = typeof entry === "string" ? normalizeHost(entry) : null;
+    if (host && !out.includes(host)) out.push(host);
+    if (out.length >= MAX_LIST_ENTRIES) break;
+  }
+  return out;
+}
+
+/**
+ * Coerces stored options into valid values, upgrading 2.0.x options:
+ * - capture was opt-in in 2.0 and is on by default since 2.1, so it is turned
+ *   on once (2.0 always stored the whole object, so "never changed" cannot be
+ *   told apart from "turned off"); after that the stored choice is kept;
+ * - `minSizeMb` becomes `minSizeKb` (a 2.0 value of 0 was the default and
+ *   takes the new default).
+ */
 export function sanitizeSettings(stored) {
   const s = stored && typeof stored === "object" ? stored : {};
+  const version = Number.isInteger(s.settingsVersion) ? s.settingsVersion : 1;
   const bool = (key) => (typeof s[key] === "boolean" ? s[key] : DEFAULT_SETTINGS[key]);
-  const min = Math.floor(Number(s.minSizeMb));
+  let minSizeKb = DEFAULT_SETTINGS.minSizeKb;
+  if (version >= SETTINGS_VERSION) {
+    const kb = Math.floor(Number(s.minSizeKb));
+    if (s.minSizeKb !== undefined && s.minSizeKb !== null && s.minSizeKb !== "" && Number.isFinite(kb)) minSizeKb = kb;
+  } else {
+    const mb = Math.floor(Number(s.minSizeMb));
+    if (Number.isFinite(mb) && mb > 0) minSizeKb = mb * 1024;
+  }
   return {
     selectionButton: bool("selectionButton"),
     detectLinks: bool("detectLinks"),
     showBadge: bool("showBadge"),
     youtubeButton: bool("youtubeButton"),
-    captureDownloads: s.captureDownloads === true,
-    minSizeMb: Number.isFinite(min) ? Math.min(Math.max(min, 0), 1_000_000) : 0,
+    captureDownloads: version >= SETTINGS_VERSION ? bool("captureDownloads") : true,
+    minSizeKb: Math.min(Math.max(minSizeKb, 0), 1_000_000_000),
+    captureNotice: bool("captureNotice"),
+    captureExcludedSites: sanitizeSites(s.captureExcludedSites),
+    captureSkipExtensions: parseExtensionList(s.captureSkipExtensions),
   };
 }
 
-/** Whether a captured browser download is large enough to hand to pixidl. */
-export function meetsMinSize(sizeBytes, minSizeMb) {
-  const min = Number(minSizeMb);
+/**
+ * What to write back to storage.local so the stored options are current:
+ * `{set, remove}`, or null when nothing needs to change.
+ */
+export function migrateSettings(stored) {
+  const s = stored && typeof stored === "object" ? stored : {};
+  const version = Number.isInteger(s.settingsVersion) ? s.settingsVersion : 1;
+  if (version >= SETTINGS_VERSION && !("minSizeMb" in s)) return null;
+  return { set: { ...sanitizeSettings(s), settingsVersion: SETTINGS_VERSION }, remove: ["minSizeMb"] };
+}
+
+/** Whether a browser download of `sizeBytes` is large enough to hand to pixidl. */
+export function meetsMinSize(sizeBytes, minSizeKb) {
+  const min = Number(minSizeKb);
   if (!Number.isFinite(min) || min <= 0) return true;
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return true; // unknown size: capture
-  return sizeBytes >= min * 1024 * 1024;
+  return sizeBytes >= min * 1024;
+}
+
+// ---- Capturing browser downloads ---------------------------------------------------
+
+/** A failed ping younger than this means pixidl is not reachable: downloads stay in the browser. */
+export const UNREACHABLE_GRACE_MS = 2 * 60 * 1000;
+/** How long an Alt+click on a link keeps its download in the browser. */
+export const BYPASS_TTL_MS = 10 * 1000;
+
+/**
+ * Whether pixidl is worth asking, from the cached ping. A recent failure
+ * means no; success, no ping yet, or an old failure (the app may have been
+ * started since) means yes; the request itself then decides.
+ */
+export function appReachable(ping, now = Date.now()) {
+  if (!ping || typeof ping !== "object") return true;
+  if (ping.connected) return ping.integration_enabled !== false;
+  const age = now - Number(ping.checked_at);
+  return !(Number.isFinite(age) && age >= 0 && age < UNREACHABLE_GRACE_MS);
+}
+
+/** Schemes that never leave the browser (and are not downloadable by pixidl anyway). */
+const BROWSER_ONLY_SCHEMES = /^(blob|data|file|filesystem|chrome|chrome-extension|moz-extension|edge|about|javascript):/i;
+
+/**
+ * Decides whether a browser download is handed to pixidl.
+ *
+ * `item` is a downloads.DownloadItem (url, finalUrl, referrer, filename,
+ * mime, totalBytes, fileSize, incognito, state, byExtensionId). `context`:
+ * `{settings, ping, now, bypass: [{url, until}], ownUrls: [url]}` where
+ * `bypass` holds Alt+clicked links and `ownUrls` downloads this extension
+ * re-started itself.
+ *
+ * Returns `{capture, reason, url}`; `url` is what to send when capturing.
+ */
+export function captureDecision(item, { settings = DEFAULT_SETTINGS, ping = null, now = Date.now(), bypass = [], ownUrls = [] } = {}) {
+  const no = (reason) => ({ capture: false, reason, url: null });
+  if (!item || typeof item !== "object") return no("invalid");
+  if (!settings.captureDownloads) return no("disabled");
+  if (item.incognito) return no("incognito");
+  if (item.state && item.state !== "in_progress") return no("not_in_progress");
+  if (item.byExtensionId) return no("by_extension");
+  const rawUrl = typeof item.url === "string" ? item.url : "";
+  const rawFinal = typeof item.finalUrl === "string" ? item.finalUrl : "";
+  if (BROWSER_ONLY_SCHEMES.test(rawUrl) || BROWSER_ONLY_SCHEMES.test(rawFinal)) return no("browser_only_scheme");
+  const url = isHttpUrl(rawFinal) ? supportedUrl(rawFinal) : isHttpUrl(rawUrl) ? supportedUrl(rawUrl) : null;
+  if (!url) return no("unsupported_url");
+  const candidates = [rawUrl, rawFinal].map(supportedUrl).filter(Boolean);
+  if ((Array.isArray(ownUrls) ? ownUrls : []).map(supportedUrl).some((u) => u && candidates.includes(u))) return no("own_download");
+  const bypassed = (Array.isArray(bypass) ? bypass : []).some((b) => b && Number(b.until) > now && candidates.includes(supportedUrl(b.url)));
+  if (bypassed) return no("bypass");
+  const sites = settings.captureExcludedSites;
+  if (hostMatches(hostOf(rawUrl), sites) || hostMatches(hostOf(rawFinal), sites) || hostMatches(hostOf(item.referrer), sites)) return no("excluded_site");
+  const skip = settings.captureSkipExtensions ?? [];
+  if (skip.length > 0) {
+    const ext = fileExtension(basename(item.filename)) || fileExtension(url);
+    if (ext && skip.includes(ext)) return no("skipped_type");
+  }
+  const size = Number(item.totalBytes) > 0 ? Number(item.totalBytes) : Number(item.fileSize);
+  if (!meetsMinSize(size, settings.minSizeKb)) return no("too_small");
+  if (!appReachable(ping, now)) return no("app_unreachable");
+  return { capture: true, reason: "ok", url };
 }
 
 /** The cached result of the last ping, as stored in storage.local `lastPing`. */

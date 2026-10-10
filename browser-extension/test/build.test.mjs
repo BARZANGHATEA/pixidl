@@ -79,7 +79,7 @@ test("manifests per browser", () => {
 
   for (const m of [chromium, firefox]) {
     assert.equal(m.manifest_version, 3);
-    assert.equal(m.version, "2.0.0");
+    assert.equal(m.version, "2.1.0");
     assert.equal(m.default_locale, "en");
     assert.equal(m.name, "__MSG_extName__");
     for (const p of ["nativeMessaging", "contextMenus", "storage", "notifications", "downloads", "scripting", "activeTab", "tabs", "alarms"]) {

@@ -2,9 +2,9 @@
 // list of active downloads in pixidl.
 
 import { api, cachedPing, errorText, localizePage, pingAndCache, send, t } from "./native.js";
-import { applyAccent, loadSettings } from "./settings.js";
+import { applyAccent, loadSettings, saveSettings } from "./settings.js";
 import { icon } from "./icons.js";
-import { buildItem, formatBytes, isHttpUrl, percent, supportedUrl } from "./lib.js";
+import { buildItem, formatBytes, hostMatches, hostOf, isHttpUrl, normalizeHost, percent, supportedUrl } from "./lib.js";
 
 const POLL_MS = 2000;
 const ACTIVE = new Set(["queued", "preparing", "downloading", "paused"]);
@@ -32,12 +32,22 @@ function showMessage(text, kind = "info") {
 
 function showConnection(ping) {
   const conn = $("conn");
+  const hint = $("conn-hint");
+  hint.hidden = true;
   if (!ping) {
     conn.dataset.state = "checking";
     $("conn-text").textContent = t("statusChecking");
   } else if (ping.success === false || ping.connected === false) {
     conn.dataset.state = "error";
-    $("conn-text").textContent = ping.error ? errorText(ping.error) : t("errAppUnavailable");
+    const code = ping.error?.code ?? ping.error_code ?? "app_unavailable";
+    if (code === "app_unavailable") {
+      // One clear line on what to do: the app is missing or not running.
+      $("conn-text").textContent = t("statusNotConnected");
+      hint.textContent = t("connHintInstall");
+      hint.hidden = false;
+    } else {
+      $("conn-text").textContent = errorText(ping.error ?? { code });
+    }
   } else if (ping.integration_enabled === false) {
     conn.dataset.state = "warn";
     $("conn-text").textContent = t("errUnauthorized");
@@ -54,6 +64,33 @@ async function checkConnection() {
   showConnection(resp);
   await applyAccent();
   return resp.success;
+}
+
+// ---- Capture of browser downloads ---------------------------------------------------
+
+/** The http(s) host of the active tab, for the per-site switch ("" elsewhere). */
+const pageHost = () => (isHttpUrl(tab?.url) ? normalizeHost(hostOf(tab.url)) || "" : "");
+
+async function showCapture() {
+  const settings = await loadSettings();
+  $("capture").checked = settings.captureDownloads;
+  const host = pageHost();
+  $("site-row").hidden = !host;
+  if (!host) return;
+  $("site-label").textContent = t("popupSiteLabel", [host]);
+  $("capture-site").checked = !hostMatches(hostOf(tab.url), settings.captureExcludedSites);
+  $("capture-site").disabled = !settings.captureDownloads;
+}
+
+async function toggleSite(on) {
+  const host = pageHost();
+  if (!host) return;
+  const settings = await loadSettings();
+  const full = hostOf(tab.url);
+  // Turning a site back on also lifts an exclusion of a parent domain.
+  const sites = settings.captureExcludedSites.filter((site) => !hostMatches(full, [site]));
+  if (!on) sites.push(host);
+  await saveSettings({ captureExcludedSites: sites });
 }
 
 // ---- Detected downloads on this page ------------------------------------------------
@@ -166,17 +203,30 @@ async function loadDownloads() {
 async function main() {
   localizePage();
   applyAccent();
-  [tab] = await api.tabs.query({ active: true, currentWindow: true });
+  // ?tab=<id> shows the popup for a given tab when popup.html is opened as a
+  // page of its own (for debugging and the end-to-end test).
+  const tabParam = Number(new URLSearchParams(location.search).get("tab"));
+  if (Number.isInteger(tabParam) && tabParam >= 0) tab = await api.tabs.get(tabParam).catch(() => null);
+  if (!tab) [tab] = await api.tabs.query({ active: true, currentWindow: true });
   const pageOk = isHttpUrl(tab?.url);
   $("all-links").disabled = !pageOk;
   $("send-page").disabled = !pageOk;
   $("review").addEventListener("click", () => openFromBackground("pixidl:reviewDetected"));
   $("all-links").addEventListener("click", () => openFromBackground("pixidl:allLinks"));
   $("send-page").addEventListener("click", sendPage);
+  $("capture").addEventListener("change", async () => {
+    await saveSettings({ captureDownloads: $("capture").checked });
+    await showCapture();
+  });
+  $("capture-site").addEventListener("change", async () => {
+    await toggleSite($("capture-site").checked);
+    await showCapture();
+  });
   $("open-settings").addEventListener("click", () => {
     api.runtime.openOptionsPage();
     window.close();
   });
+  showCapture();
   showDetected();
   if (await checkConnection()) await refreshDownloads();
   else $("no-downloads").hidden = false;

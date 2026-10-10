@@ -31,6 +31,43 @@ body {
   padding: 12px;
 }
 
+.conn-hint {
+  margin: -6px 0 10px;
+  color: var(--muted);
+}
+
+.capture {
+  display: grid;
+  gap: 0;
+  padding: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.toggle.site {
+  border-top: 1px solid var(--border);
+}
+
+.toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toggle-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .detect {
   display: grid;
   gap: 10px;

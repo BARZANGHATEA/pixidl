@@ -19,6 +19,30 @@
       </header>
 
       <section class="group">
+        <h2 data-i18n="optionsDownloadsHeading"></h2>
+        <label class="setting">
+          <span class="text"><span class="label" data-i18n="captureLabel"></span><span class="hint" data-i18n="captureHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="captureDownloads" />
+        </label>
+        <label class="setting sub" for="min-size">
+          <span class="text"><span class="label" data-i18n="minSizeLabel"></span><span class="hint" data-i18n="minSizeHint"></span></span>
+          <input id="min-size" type="number" min="0" max="1000000000" step="1" inputmode="numeric" />
+        </label>
+        <label class="setting sub">
+          <span class="text"><span class="label" data-i18n="captureNoticeLabel"></span><span class="hint" data-i18n="captureNoticeHint"></span></span>
+          <input class="switch" type="checkbox" role="switch" data-setting="captureNotice" />
+        </label>
+        <label class="setting sub stacked" for="skip-types">
+          <span class="text"><span class="label" data-i18n="skipTypesLabel"></span><span class="hint" data-i18n="skipTypesHint"></span></span>
+          <input id="skip-types" type="text" spellcheck="false" autocomplete="off" dir="ltr" />
+        </label>
+        <label class="setting sub stacked" for="excluded-sites">
+          <span class="text"><span class="label" data-i18n="excludedSitesLabel"></span><span class="hint" data-i18n="excludedSitesHint"></span></span>
+          <textarea id="excluded-sites" rows="3" spellcheck="false" autocomplete="off" dir="ltr"></textarea>
+        </label>
+      </section>
+
+      <section class="group">
         <h2 data-i18n="optionsPagesHeading"></h2>
         <label class="setting">
           <span class="text"><span class="label" data-i18n="optSelectionButton"></span><span class="hint" data-i18n="optSelectionButtonHint"></span></span>
@@ -35,18 +59,6 @@
         <label class="setting">
           <span class="text"><span class="label" data-i18n="optYoutubeButton"></span><span class="hint" data-i18n="optYoutubeButtonHint"></span></span>
           <input class="switch" type="checkbox" role="switch" data-setting="youtubeButton" />
-        </label>
-      </section>
-
-      <section class="group">
-        <h2 data-i18n="optionsDownloadsHeading"></h2>
-        <label class="setting">
-          <span class="text"><span class="label" data-i18n="captureLabel"></span><span class="hint" data-i18n="captureHint"></span></span>
-          <input class="switch" type="checkbox" role="switch" data-setting="captureDownloads" />
-        </label>
-        <label class="setting sub" for="min-size">
-          <span class="text"><span class="label" data-i18n="minSizeLabel"></span><span class="hint" data-i18n="minSizeHint"></span></span>
-          <input id="min-size" type="number" min="0" max="1000000" step="1" inputmode="numeric" />
         </label>
       </section>
 
