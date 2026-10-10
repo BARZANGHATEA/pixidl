@@ -49,9 +49,15 @@ jobs:
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
           } | Out-File -Encoding ascii out/SHA256SUMS.txt
           Get-Content out/SHA256SUMS.txt
+      - name: Release notes (.github/release-notes/<tag>.md, if present)
+        shell: pwsh
+        run: |
+          $notes = ".github/release-notes/${{ inputs.tag || github.ref_name }}.md"
+          if (Test-Path $notes) { Copy-Item $notes release-notes.md } else { New-Item -ItemType File release-notes.md | Out-Null }
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           name: pixidl ${{ inputs.tag || github.ref_name }}
+          body_path: release-notes.md
           generate_release_notes: true
           files: out/*
