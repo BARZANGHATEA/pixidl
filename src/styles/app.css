@@ -11,6 +11,8 @@
   --text-2: #71717a;
   --text-3: #a1a1aa;
   --border: #e4e4e7;
+  --scrollbar: #c4c4cc;
+  --scrollbar-hover: #a1a1aa;
   --border-strong: #d4d4d8;
   --accent: #2563eb;
   --accent-contrast: #ffffff;
@@ -44,6 +46,8 @@
   --text-2: #a1a1aa;
   --text-3: #71717a;
   --border: #27272a;
+  --scrollbar: #3f3f46;
+  --scrollbar-hover: #52525b;
   --border-strong: #3f3f46;
   --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-soft-2: color-mix(in srgb, var(--accent) 26%, transparent);
@@ -83,8 +87,17 @@ button { cursor: pointer; }
 .select-text { user-select: text; }
 
 /* ------------------------------------------------------------------ layout */
-.app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; height: 100%; }
-.main { display: flex; flex-direction: column; min-width: 0; height: 100%; background: var(--bg); }
+/* minmax(0, 1fr) keeps the row at window height: without it a long list grows the
+   row past the window, pushing the sidebar footer and status bar off-screen. */
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; overflow: hidden; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg); }
+
+/* Thin, theme-aware scrollbars that stay visible enough to find. */
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); background-clip: content-box; }
 
 /* ------------------------------------------------------------------ sidebar */
 .sidebar {
@@ -93,8 +106,11 @@ button { cursor: pointer; }
   background: var(--surface);
   border-inline-end: 1px solid var(--border);
   min-height: 0;
+  overflow: hidden;
 }
-.brand { display: flex; align-items: center; gap: 12px; padding: 6px 10px 22px; }
+/* The middle of the sidebar scrolls; brand and footer (extensions, settings, about) stay put. */
+.sidebar-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }
+.brand { flex: none; display: flex; align-items: center; gap: 12px; padding: 6px 10px 22px; }
 .brand img { width: 38px; height: 38px; }
 .brand-name { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
 .brand-sub { font-size: 12px; color: var(--text-2); }
@@ -114,7 +130,7 @@ button { cursor: pointer; }
 .nav-item[aria-current="true"] svg { color: var(--accent); }
 .nav-item .count { margin-inline-start: auto; font-size: 11.5px; color: var(--text-2); background: var(--surface-2); border-radius: 6px; padding: 1px 7px; min-width: 22px; text-align: center; }
 .nav-item.sub { height: 34px; }
-.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-bottom { flex: none; display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 8px; }
 
 /* ------------------------------------------------------------------ title bar */
 .titlebar {
@@ -353,9 +369,9 @@ button { cursor: pointer; }
 .filelist label:last-child { border-bottom: 0; }
 
 /* ------------------------------------------------------------------ settings */
-.settings { display: grid; grid-template-columns: 210px 1fr; flex: 1; min-height: 0; }
+.settings { display: grid; grid-template-columns: 210px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
 .settings-nav { padding: 18px 12px; border-inline-end: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; overflow: auto; }
-.settings-body { overflow: auto; padding: 22px 32px 40px; }
+.settings-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 32px 40px; }
 .section { max-width: 720px; display: flex; flex-direction: column; gap: 4px; }
 .section h2 { font-size: 18px; margin: 0 0 12px; font-weight: 650; }
 .setting { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }

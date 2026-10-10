@@ -38,39 +38,41 @@ export function Sidebar() {
           <div className="brand-sub">{t("app.subtitle")}</div>
         </div>
       </div>
-      <div className="nav-group">
-        <button
-          className="nav-item"
-          aria-current={onDownloads && isAllScope && status === "all"}
-          onClick={() => {
-            setScope({ kind: "all" });
-            setStatus("all");
-          }}
-        >
-          <Download aria-hidden="true" />
-          <span>{t("nav.downloads")}</span>
-        </button>
-        {statusItem("all", t("nav.all"), LayoutList, counts.all)}
-        {statusItem("active", t("nav.downloading"), Download, counts.active)}
-        {statusItem("completed", t("nav.completed"), CheckCircle2, counts.completed)}
-        {statusItem("failed", t("nav.failed"), XCircle, counts.failed)}
-      </div>
-      <div className="nav-sep" />
-      <div className="nav-group">
-        <button className="nav-item" aria-current={onDownloads && scope.kind === "engine" && scope.engine === "torrent"} onClick={() => { setScope({ kind: "engine", engine: "torrent" }); setStatus("all"); }}>
-          <Magnet aria-hidden="true" />
-          <span>{t("nav.torrents")}</span>
-          <span className="count">{counts.torrent}</span>
-        </button>
-        <button className="nav-item" aria-current={onDownloads && scope.kind === "engine" && scope.engine === "video"} onClick={() => { setScope({ kind: "engine", engine: "video" }); setStatus("all"); }}>
-          <PlayCircle aria-hidden="true" />
-          <span>{t("nav.video")}</span>
-          <span className="count">{counts.video}</span>
-        </button>
-        <button className="nav-item" aria-current={view === "history"} onClick={() => setView("history")}>
-          <History aria-hidden="true" />
-          <span>{t("nav.history")}</span>
-        </button>
+      <div className="sidebar-scroll">
+        <div className="nav-group">
+          <button
+            className="nav-item"
+            aria-current={onDownloads && isAllScope && status === "all"}
+            onClick={() => {
+              setScope({ kind: "all" });
+              setStatus("all");
+            }}
+          >
+            <Download aria-hidden="true" />
+            <span>{t("nav.downloads")}</span>
+          </button>
+          {statusItem("all", t("nav.all"), LayoutList, counts.all)}
+          {statusItem("active", t("nav.downloading"), Download, counts.active)}
+          {statusItem("completed", t("nav.completed"), CheckCircle2, counts.completed)}
+          {statusItem("failed", t("nav.failed"), XCircle, counts.failed)}
+        </div>
+        <div className="nav-sep" />
+        <div className="nav-group">
+          <button className="nav-item" aria-current={onDownloads && scope.kind === "engine" && scope.engine === "torrent"} onClick={() => { setScope({ kind: "engine", engine: "torrent" }); setStatus("all"); }}>
+            <Magnet aria-hidden="true" />
+            <span>{t("nav.torrents")}</span>
+            <span className="count">{counts.torrent}</span>
+          </button>
+          <button className="nav-item" aria-current={onDownloads && scope.kind === "engine" && scope.engine === "video"} onClick={() => { setScope({ kind: "engine", engine: "video" }); setStatus("all"); }}>
+            <PlayCircle aria-hidden="true" />
+            <span>{t("nav.video")}</span>
+            <span className="count">{counts.video}</span>
+          </button>
+          <button className="nav-item" aria-current={view === "history"} onClick={() => setView("history")}>
+            <History aria-hidden="true" />
+            <span>{t("nav.history")}</span>
+          </button>
+        </div>
       </div>
       <div className="sidebar-bottom">
         <button className="nav-item" aria-current={view === "extensions"} onClick={() => setView("extensions")}>

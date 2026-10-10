@@ -191,6 +191,7 @@ pub fn run() {
             tauri::async_runtime::spawn(async move { apply_browser_integration(&h).await });
 
             if let Some(w) = app.get_webview_window("main") {
+                fit_to_screen(&w);
                 if !(background || (settings.start_minimized && settings.first_run_completed)) {
                     let _ = w.show();
                     let _ = w.set_focus();
@@ -278,4 +279,18 @@ pub fn run() {
                 }
             }
         });
+}
+
+/// The configured window size (1200×780) is taller than many laptop screens
+/// once Windows display scaling applies; shrink it to the monitor's work area so
+/// the sidebar footer and status bar are never off-screen.
+fn fit_to_screen(w: &tauri::WebviewWindow) {
+    let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.outer_size()) else { return };
+    let area = monitor.work_area().size;
+    let max_w = (area.width as f64 * 0.95) as u32;
+    let max_h = (area.height as f64 * 0.92) as u32;
+    if size.width > max_w || size.height > max_h {
+        let _ = w.set_size(tauri::PhysicalSize::new(size.width.min(max_w), size.height.min(max_h)));
+        let _ = w.center();
+    }
 }
