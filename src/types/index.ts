@@ -20,6 +20,7 @@ export type { ManagerEvent } from "./generated/ManagerEvent";
 export type { Priority } from "./generated/Priority";
 export type { ProgressUpdate } from "./generated/ProgressUpdate";
 export type { ProxyMode } from "./generated/ProxyMode";
+export type { Queue } from "./generated/Queue";
 export type { ScheduleSettings } from "./generated/ScheduleSettings";
 export type { Settings } from "./generated/Settings";
 export type { Theme } from "./generated/Theme";

@@ -6,6 +6,7 @@ import { TitleBar } from "./components/TitleBar";
 import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { QueueDialog } from "./components/QueueDialog";
 import { AddDownloadDialog } from "./components/AddDownloadDialog";
 import { DetailsDrawer } from "./components/DetailsDrawer";
 import { PowerBanner } from "./components/PowerBanner";
@@ -136,6 +137,7 @@ export default function App() {
       </main>
       {addOpen && <AddDownloadDialog />}
       <DetailsDrawer />
+      <QueueDialog />
       <ConfirmDialog />
       <Toasts />
     </div>

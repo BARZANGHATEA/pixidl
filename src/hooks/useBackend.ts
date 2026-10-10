@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { subscribe } from "../services/events";
 import { useDownloads } from "../stores/downloads";
+import { useQueues } from "../stores/queues";
 import { useUi } from "../stores/ui";
 import { api } from "../services/api";
 import { hostOf } from "../lib/format";
@@ -13,9 +14,11 @@ export function useBackend() {
     let off: (() => void) | undefined;
     let cancelled = false;
     void useDownloads.getState().load();
+    void useQueues.getState().load();
     subscribe({
       onManagerEvent: (e) => {
         useDownloads.getState().applyEvent(e);
+        if (e.type === "queues_changed") useQueues.getState().set(e.queues);
         const ui = useUi.getState();
         if (e.type === "download_completed") ui.toast({ tone: "success", title: t("toast.completed"), body: e.download.filename });
         if (e.type === "download_failed")

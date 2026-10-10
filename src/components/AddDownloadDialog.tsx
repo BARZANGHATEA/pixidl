@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { api } from "../services/api";
 import { useUi } from "../stores/ui";
 import { useSettings } from "../stores/settings";
+import { MAIN_QUEUE_ID, queueName, useQueues } from "../stores/queues";
 import { formatBytes, formatDuration, hostOf } from "../lib/format";
 import { FileIcon } from "./FileIcon";
 import type { AddDownloadRequest, CommandError, EngineKind, LinkProbe, Priority, TorrentFilePreview, TorrentInfo, UrlInspection } from "../types";
@@ -69,6 +70,12 @@ export function AddDownloadDialog() {
   const [saveDir, setSaveDir] = useState(settings?.defaultDownloadDir ?? "");
   const [category, setCategory] = useState<string>("");
   const [priority, setPriority] = useState<Priority>("normal");
+  const queues = useQueues((s) => s.queues);
+  // Adding while a queue is open in the list puts the download in that queue.
+  const [queueId, setQueueId] = useState(() => {
+    const scope = useUi.getState().scope;
+    return scope.kind === "queue" ? scope.id : MAIN_QUEUE_ID;
+  });
   const [startMode, setStartMode] = useState<StartMode>("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [preset, setPreset] = useState<string | null>(null);
@@ -229,6 +236,7 @@ export function AddDownloadDialog() {
     const common = {
       saveDir: dir && dir !== settings?.defaultDownloadDir ? dir : undefined,
       priority,
+      queueId: queueId !== MAIN_QUEUE_ID ? queueId : undefined,
       startPaused: startMode === "paused",
       scheduledAt: startMode === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
     };
@@ -270,6 +278,7 @@ export function AddDownloadDialog() {
       startPaused: startMode === "paused",
       scheduledAt: startMode === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       torrentBase64: torrentFile?.base64,
+      queueId: common.queueId,
     };
     setSubmitting(true);
     try {
@@ -621,6 +630,16 @@ export function AddDownloadDialog() {
               <option value="low">{t("priority.low")}</option>
             </select>
           </div>
+          {queues.length > 1 && (
+            <div className="field">
+              <label htmlFor="add-queue">{t("queues.queue")}</label>
+              <select id="add-queue" className="select" value={queueId} onChange={(e) => setQueueId(e.target.value)}>
+                {queues.map((q) => (
+                  <option key={q.id} value={q.id}>{queueName(q, t)}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {!isBatch && !inPlaylistMode && effectiveEngine !== "torrent" && (

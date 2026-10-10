@@ -24,6 +24,9 @@ export interface ConfirmRequest {
   onConfirm: (checked: boolean) => void;
 }
 
+/** The create / edit queue dialog. `focus` picks the field to start in. */
+export type QueueDialogRequest = { mode: "create" } | { mode: "edit"; id: string; focus: "name" | "max" };
+
 const SORT_KEY = "pixidl.sort";
 function initialSort(): SortKey {
   try {
@@ -46,6 +49,7 @@ interface UiState {
   toasts: Toast[];
   confirm: ConfirmRequest | null;
   power: PowerCountdown | null;
+  queueDialog: QueueDialogRequest | null;
   setView: (v: View) => void;
   setScope: (s: Scope) => void;
   setStatus: (s: StatusFilter) => void;
@@ -59,6 +63,7 @@ interface UiState {
   dismissToast: (id: number) => void;
   ask: (c: ConfirmRequest | null) => void;
   setPower: (p: PowerCountdown | null) => void;
+  openQueueDialog: (q: QueueDialogRequest | null) => void;
 }
 
 let toastSeq = 1;
@@ -74,6 +79,7 @@ export const useUi = create<UiState>((set, get) => ({
   toasts: [],
   confirm: null,
   power: null,
+  queueDialog: null,
   setView: (view) => set({ view }),
   setScope: (scope) => set({ scope, view: "downloads" }),
   setStatus: (status) => set({ status, view: "downloads" }),
@@ -99,4 +105,5 @@ export const useUi = create<UiState>((set, get) => ({
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
   ask: (confirm) => set({ confirm }),
   setPower: (power) => set({ power }),
+  openQueueDialog: (queueDialog) => set({ queueDialog }),
 }));
