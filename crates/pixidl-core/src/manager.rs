@@ -295,6 +295,52 @@ impl DownloadManager {
         inner.finish_remove(&d, delete_files).await
     }
 
+    /// Resumes (or retries) every download in `ids`. Downloads that no longer
+    /// exist are skipped; the first other error is returned after trying all.
+    pub fn resume_many(&self, ids: &[String]) -> Result<()> {
+        self.for_each_existing(ids, |id| self.resume(id))
+    }
+
+    /// Pauses every download in `ids` (see [`Self::resume_many`] for errors).
+    pub fn pause_many(&self, ids: &[String]) -> Result<()> {
+        self.for_each_existing(ids, |id| self.pause(id))
+    }
+
+    /// Removes every download in `ids` (see [`Self::remove`] for what happens to files).
+    pub async fn remove_many(&self, ids: &[String], delete_files: bool) -> Result<()> {
+        let mut first_err = None;
+        for id in ids {
+            if self.inner.current(id)?.is_none() {
+                continue;
+            }
+            if let Err(e) = self.remove(id, delete_files).await {
+                first_err.get_or_insert(e);
+            }
+        }
+        first_err.map_or(Ok(()), Err)
+    }
+
+    /// Removes every completed download from the list. Files are kept unless
+    /// `delete_files` is true. Returns how many entries were removed.
+    pub async fn clear_completed(&self, delete_files: bool) -> Result<usize> {
+        let ids: Vec<String> = self.list()?.into_iter().filter(|d| d.status == DownloadStatus::Completed).map(|d| d.id).collect();
+        self.remove_many(&ids, delete_files).await?;
+        Ok(ids.len())
+    }
+
+    fn for_each_existing(&self, ids: &[String], mut f: impl FnMut(&str) -> Result<()>) -> Result<()> {
+        let mut first_err = None;
+        for id in ids {
+            if self.inner.current(id)?.is_none() {
+                continue;
+            }
+            if let Err(e) = f(id) {
+                first_err.get_or_insert(e);
+            }
+        }
+        first_err.map_or(Ok(()), Err)
+    }
+
     pub fn pause_all(&self) -> Result<()> {
         for d in self.list()? {
             if matches!(d.status, DownloadStatus::Queued | DownloadStatus::Preparing | DownloadStatus::Downloading) {
@@ -368,6 +414,111 @@ impl DownloadManager {
             self.inner.sink.emit(ManagerEvent::DownloadRemoved { id });
         }
         Ok(())
+    }
+
+    // ------------------------------------------------------------------ queues
+
+    pub fn queues(&self) -> Result<Vec<Queue>> {
+        self.inner.db.queues()
+    }
+
+    pub fn create_queue(&self, name: &str, max_concurrent: u32) -> Result<Queue> {
+        let name = self.inner.valid_queue_name(name, None)?;
+        let q = Queue {
+            id: uuid::Uuid::new_v4().to_string(),
+            name,
+            max_concurrent: max_concurrent.clamp(1, 20),
+            running: true,
+            sort_order: self.inner.db.next_queue_sort_order()?,
+            created_at: now(),
+        };
+        self.inner.db.insert_queue(&q)?;
+        self.inner.emit_queues();
+        Ok(q)
+    }
+
+    /// Renames a queue. An empty name gives the main queue back its default name.
+    pub fn rename_queue(&self, id: &str, name: &str) -> Result<()> {
+        let mut q = self.inner.require_queue(id)?;
+        q.name = if q.is_main() && name.trim().is_empty() { String::new() } else { self.inner.valid_queue_name(name, Some(id))? };
+        self.inner.db.update_queue(&q)?;
+        self.inner.emit_queues();
+        Ok(())
+    }
+
+    /// How many downloads of the queue may run at once (clamped to 1–20). The
+    /// global `max_concurrent_downloads` still applies on top.
+    pub fn set_queue_max_concurrent(&self, id: &str, max_concurrent: u32) -> Result<()> {
+        let mut q = self.inner.require_queue(id)?;
+        q.max_concurrent = max_concurrent.clamp(1, 20);
+        self.inner.db.update_queue(&q)?;
+        self.inner.emit_queues();
+        self.inner.wake.notify_one();
+        Ok(())
+    }
+
+    /// Deletes a queue; its downloads move to the main queue.
+    pub fn delete_queue(&self, id: &str) -> Result<()> {
+        if id == MAIN_QUEUE_ID {
+            return Err(DownloadError::new(ErrorKind::Unknown, "The main queue cannot be deleted"));
+        }
+        self.inner.require_queue(id)?;
+        for d in self.inner.db.download_ids_in_queue(id)? {
+            self.inner.modify(&d, |d| d.queue_id = MAIN_QUEUE_ID.to_string())?;
+        }
+        self.inner.db.delete_queue(id)?;
+        self.inner.emit_queues();
+        self.inner.wake.notify_one();
+        Ok(())
+    }
+
+    /// Lets the queue start downloads again and resumes its paused downloads.
+    pub fn start_queue(&self, id: &str) -> Result<()> {
+        let mut q = self.inner.require_queue(id)?;
+        if !q.running {
+            q.running = true;
+            self.inner.db.update_queue(&q)?;
+            self.inner.emit_queues();
+        }
+        let paused: Vec<String> = self.list()?.into_iter().filter(|d| d.queue_id == id && d.status == DownloadStatus::Paused).map(|d| d.id).collect();
+        self.resume_many(&paused)?;
+        self.inner.wake.notify_one();
+        Ok(())
+    }
+
+    /// Stops the queue: it starts nothing new, and its running downloads go back
+    /// to waiting in the queue (they continue when the queue is started again).
+    pub fn stop_queue(&self, id: &str) -> Result<()> {
+        let mut q = self.inner.require_queue(id)?;
+        if q.running {
+            q.running = false;
+            self.inner.db.update_queue(&q)?;
+            self.inner.emit_queues();
+        }
+        self.inner.requeue_running_in(id);
+        Ok(())
+    }
+
+    /// Moves downloads to another queue. A running download moved into a
+    /// stopped queue goes back to waiting.
+    pub fn move_to_queue(&self, ids: &[String], queue_id: &str) -> Result<()> {
+        let q = self.inner.require_queue(queue_id)?;
+        let mut first_err = None;
+        for id in ids {
+            match self.inner.current(id)? {
+                Some(d) if d.queue_id != q.id => {
+                    if let Err(e) = self.inner.modify(id, |d| d.queue_id = q.id.clone()) {
+                        first_err.get_or_insert(e);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !q.running {
+            self.inner.requeue_running_in(&q.id);
+        }
+        self.inner.wake.notify_one();
+        first_err.map_or(Ok(()), Err)
     }
 
     // ------------------------------------------------------------------ settings
@@ -569,6 +720,38 @@ impl Inner {
         self.db.get_download(id)?.ok_or_else(|| DownloadError::new(ErrorKind::Unknown, "Download not found"))
     }
 
+    fn require_queue(&self, id: &str) -> Result<Queue> {
+        self.db.get_queue(id)?.ok_or_else(|| DownloadError::new(ErrorKind::Unknown, "Queue not found"))
+    }
+
+    /// Trimmed, non-empty, at most 64 characters and not used by another queue.
+    fn valid_queue_name(&self, name: &str, except_id: Option<&str>) -> Result<String> {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 64 {
+            return Err(DownloadError::new(ErrorKind::Unknown, "Invalid queue name"));
+        }
+        let taken = self.db.queues()?.iter().any(|q| Some(q.id.as_str()) != except_id && q.name.to_lowercase() == name.to_lowercase());
+        if taken {
+            return Err(DownloadError::new(ErrorKind::Unknown, "A queue with this name already exists"));
+        }
+        Ok(name.to_string())
+    }
+
+    fn emit_queues(&self) {
+        match self.db.queues() {
+            Ok(queues) => self.sink.emit(ManagerEvent::QueuesChanged { queues }),
+            Err(e) => tracing::error!(error = %e, "cannot read queues"),
+        }
+    }
+
+    /// Sends the running downloads of a queue back to waiting (used when the queue stops).
+    fn requeue_running_in(&self, queue_id: &str) {
+        let ids: Vec<String> = self.jobs.lock().iter().filter(|(_, j)| j.intent.is_none() && j.download.queue_id == queue_id).map(|(k, _)| k.clone()).collect();
+        for id in ids {
+            let _ = self.pause(&id, Intent::Requeue);
+        }
+    }
+
     fn emit_updated(&self, id: &str) {
         if let Ok(Some(d)) = self.current(id) {
             self.sink.emit(ManagerEvent::DownloadUpdated { download: d });
@@ -682,6 +865,12 @@ impl Inner {
                 Some(base64::engine::general_purpose::STANDARD.decode(b64.trim()).map_err(|_| DownloadError::invalid_url("Invalid torrent file data"))?)
             }
             None => None,
+        };
+
+        // The browser cannot choose a queue.
+        let queue_id = match (req.queue_id.as_deref().map(str::trim), source) {
+            (Some(q), AddSource::User) if !q.is_empty() => self.require_queue(q)?.id,
+            _ => MAIN_QUEUE_ID.to_string(),
         };
 
         let (url, detected) = if torrent_bytes.is_some() {
@@ -798,6 +987,7 @@ impl Inner {
             updated_at: t,
             scheduled_at: req.scheduled_at.clone(),
             file_missing: false,
+            queue_id,
         };
         self.db.insert_download(&d)?;
         if let Some(b) = &torrent_bytes {
@@ -971,20 +1161,37 @@ impl Inner {
             }
             return;
         }
-        let active = self.jobs.lock().len();
         let max = settings.max_concurrent_downloads as usize;
-        let queued = match self.db.queued_in_order() {
-            Ok(q) => q,
-            Err(e) => {
+        let (queued, queues) = match (self.db.queued_in_order(), self.db.queues()) {
+            (Ok(d), Ok(q)) => (d, q.into_iter().map(|q| (q.id.clone(), q)).collect::<HashMap<_, _>>()),
+            (Err(e), _) | (_, Err(e)) => {
                 tracing::error!(error = %e, "cannot read queue");
                 return;
             }
+        };
+        // A download whose queue no longer exists counts as part of the main queue.
+        let queue_of = |id: &str| if queues.contains_key(id) { id.to_string() } else { MAIN_QUEUE_ID.to_string() };
+        // Running jobs per queue; a download starts only while both its queue
+        // and the global limit have a free slot.
+        let (active, mut per_queue) = {
+            let jobs = self.jobs.lock();
+            let mut per_queue: HashMap<String, usize> = HashMap::new();
+            for j in jobs.values() {
+                *per_queue.entry(queue_of(&j.download.queue_id)).or_default() += 1;
+            }
+            (jobs.len(), per_queue)
         };
         let now_utc = chrono::Utc::now();
         let mut free = max.saturating_sub(active);
         let mut waiting = 0;
         for d in queued {
             if self.jobs.lock().contains_key(&d.id) {
+                continue;
+            }
+            let qid = queue_of(&d.queue_id);
+            let (queue_running, queue_max) = queues.get(&qid).map(|q| (q.running, q.max_concurrent as usize)).unwrap_or((true, usize::MAX));
+            if !queue_running {
+                // Like a paused download: does not hold back "queue finished".
                 continue;
             }
             if let Some(at) = &d.scheduled_at {
@@ -997,7 +1204,8 @@ impl Inner {
                 waiting += 1;
                 continue;
             }
-            if free == 0 {
+            let in_queue = per_queue.entry(qid).or_default();
+            if free == 0 || *in_queue >= queue_max {
                 waiting += 1;
                 continue;
             }
@@ -1006,6 +1214,7 @@ impl Inner {
                 continue;
             }
             free -= 1;
+            *in_queue += 1;
         }
         // Finished = nothing running, nothing waiting (queued, scheduled or retrying).
         let idle = self.jobs.lock().is_empty() && waiting == 0;

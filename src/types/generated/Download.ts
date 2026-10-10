@@ -36,4 +36,8 @@ peers: number | null, seeds: number | null, infoHash: string | null, title: stri
 /**
  * Set when a completed download's file can no longer be found on disk.
  */
-fileMissing: boolean, };
+fileMissing: boolean, 
+/**
+ * The queue this download belongs to ([`MAIN_QUEUE_ID`] by default).
+ */
+queueId: string, };
