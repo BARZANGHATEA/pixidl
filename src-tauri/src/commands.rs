@@ -35,6 +35,12 @@ pub fn get_download_events(state: State<'_, AppState>, id: String) -> CmdResult<
     Ok(state.mgr.events(&id)?)
 }
 
+/// Live segment map of a multi-connection HTTP download (`null` = not segmented).
+#[tauri::command]
+pub fn get_segments(state: State<'_, AppState>, id: String) -> CmdResult<Option<pixidl_core::engines::SegmentView>> {
+    Ok(state.mgr.segments(&id)?)
+}
+
 #[tauri::command]
 pub fn get_stats(state: State<'_, AppState>) -> CmdResult<GlobalStats> {
     Ok(state.mgr.stats()?)

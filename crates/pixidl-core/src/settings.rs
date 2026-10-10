@@ -7,6 +7,9 @@ use ts_rs::TS;
 
 use crate::security::DuplicatePolicy;
 
+/// Upper bound for connections per HTTP download.
+pub const MAX_CONNECTIONS: u32 = 32;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
@@ -171,7 +174,7 @@ impl Default for Settings {
             max_concurrent_downloads: 3,
             ask_for_destination: false,
             duplicate_policy: DuplicatePolicy::Rename,
-            connections_per_download: 4,
+            connections_per_download: 8,
             auto_resume_on_startup: true,
             category_subfolders: false,
             global_speed_limit_bps: None,
@@ -242,7 +245,7 @@ impl Settings {
     pub fn validate(&mut self) -> Vec<String> {
         let mut problems = Vec::new();
         self.max_concurrent_downloads = self.max_concurrent_downloads.clamp(1, 20);
-        self.connections_per_download = self.connections_per_download.clamp(1, 16);
+        self.connections_per_download = self.connections_per_download.clamp(1, MAX_CONNECTIONS);
         self.connect_timeout_secs = self.connect_timeout_secs.clamp(3, 300);
         self.read_timeout_secs = self.read_timeout_secs.clamp(5, 600);
         self.retry_count = self.retry_count.min(20);
@@ -371,7 +374,7 @@ mod tests {
         let mut s = Settings { max_concurrent_downloads: 0, connections_per_download: 99, global_speed_limit_bps: Some(0), ..Default::default() };
         s.validate();
         assert_eq!(s.max_concurrent_downloads, 1);
-        assert_eq!(s.connections_per_download, 16);
+        assert_eq!(s.connections_per_download, MAX_CONNECTIONS);
         assert_eq!(s.global_speed_limit_bps, None);
     }
 

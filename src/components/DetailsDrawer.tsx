@@ -6,6 +6,7 @@ import { useDownloads } from "../stores/downloads";
 import { useSettings } from "../stores/settings";
 import { api } from "../services/api";
 import { useDownloadActions } from "../hooks/useDownloadActions";
+import { DownloadSegments } from "./SegmentMap";
 import { formatBytes, formatDate, limitToMBps, parseLimitMBps } from "../lib/format";
 import type { DownloadEvent, Priority } from "../types";
 
@@ -93,6 +94,10 @@ export function DetailsDrawer() {
           {d.startedAt && (<><dt>{t("details.started")}</dt><dd>{formatDate(d.startedAt, lang)}</dd></>)}
           {d.completedAt && (<><dt>{t("details.completedAt")}</dt><dd>{formatDate(d.completedAt, lang)}</dd></>)}
         </dl>
+
+        {d.engine === "http" && d.status !== "completed" && (
+          <DownloadSegments id={d.id} live={d.status === "downloading" || d.status === "preparing"} refreshKey={d.status} />
+        )}
 
         <div className="grid-2">
           <div className="field">

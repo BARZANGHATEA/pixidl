@@ -35,6 +35,8 @@ export type { ExtensionClient } from "./generated/ExtensionClient";
 export type { LinkProbe } from "./generated/LinkProbe";
 export type { PlaylistInfo } from "./generated/PlaylistInfo";
 export type { PlaylistEntry } from "./generated/PlaylistEntry";
+export type { SegmentInfo } from "./generated/SegmentInfo";
+export type { SegmentView } from "./generated/SegmentView";
 
 import type { ErrorKind } from "./generated/ErrorKind";
 import type { ToolStatus } from "./generated/ToolStatus";

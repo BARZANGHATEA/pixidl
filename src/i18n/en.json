@@ -182,7 +182,11 @@
     "no": "No",
     "unknown": "Unknown",
     "scheduleAt": "Start at",
-    "clearSchedule": "Clear schedule"
+    "clearSchedule": "Clear schedule",
+    "segments": "Parts",
+    "segmentsCount": "{{count}} parts",
+    "activeConnections": "Active connections: {{count}}",
+    "segmentMapLabel": "Download progress by part: {{percent}}% of {{count}} parts"
   },
   "history": {
     "title": "History",
@@ -307,6 +311,7 @@
     "addFolder": "Add folder",
     "maxConcurrent": "Maximum simultaneous downloads",
     "connectionsPer": "Connections per download",
+    "connectionsPerDesc": "1–32. Large files are split into parts downloaded in parallel; if a server allows fewer connections, fewer are used.",
     "askDestination": "Ask where to save each download",
     "duplicate": "If the file already exists",
     "duplicateRename": "Keep both (file (1).zip)",

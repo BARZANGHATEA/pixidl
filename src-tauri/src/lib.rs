@@ -236,6 +236,7 @@ pub fn run() {
             commands::list_downloads,
             commands::get_download,
             commands::get_download_events,
+            commands::get_segments,
             commands::get_stats,
             commands::add_download,
             commands::inspect_url,

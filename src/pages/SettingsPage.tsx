@@ -165,8 +165,8 @@ export function SettingsPage() {
                 <Row title={t("settings.maxConcurrent")}>
                   <CommitInput type="number" width={100} label={t("settings.maxConcurrent")} value={String(settings.maxConcurrentDownloads)} onCommit={(v) => set({ maxConcurrentDownloads: int(v, 3) })} />
                 </Row>
-                <Row title={t("settings.connectionsPer")}>
-                  <CommitInput type="number" width={100} label={t("settings.connectionsPer")} value={String(settings.connectionsPerDownload)} onCommit={(v) => set({ connectionsPerDownload: int(v, 4) })} />
+                <Row title={t("settings.connectionsPer")} desc={t("settings.connectionsPerDesc")}>
+                  <CommitInput type="number" width={100} label={t("settings.connectionsPer")} value={String(settings.connectionsPerDownload)} onCommit={(v) => set({ connectionsPerDownload: int(v, 8) })} />
                 </Row>
                 <Row title={t("settings.askDestination")}>
                   <Switch label={t("settings.askDestination")} checked={settings.askForDestination} onChange={(v) => set({ askForDestination: v })} />
