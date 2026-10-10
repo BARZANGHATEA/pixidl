@@ -2,14 +2,16 @@ name: Release
 
 # Push a version tag (git tag v1.0.0 && git push origin v1.0.0) to build the
 # Windows installer with MSVC and publish it, with the extension packages, as a
-# GitHub release. Run it by hand from the Actions tab to rebuild an existing tag.
+# GitHub release. Run it by hand from the Actions tab to rebuild an existing
+# tag, or with a new tag name to release the commit it runs on (the release
+# step then creates the tag).
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)build, e.g. v1.0.0"
+        description: "Tag to (re)build, e.g. v1.0.0; a new tag is created on the selected branch's commit"
         required: true
 
 permissions:
@@ -25,8 +27,17 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
+      - name: Check out the tag if it already exists
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if git fetch --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG"; then
+            git checkout "$TAG"
+          else
+            echo "Tag $TAG does not exist yet; releasing $GITHUB_SHA as $TAG"
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -58,6 +69,7 @@ jobs:
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           name: pixidl ${{ inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           body_path: release-notes.md
           generate_release_notes: true
           files: out/*
