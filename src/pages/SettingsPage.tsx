@@ -110,7 +110,7 @@ export function SettingsPage() {
                   <Switch label={t("settings.minimizeToTray")} checked={settings.minimizeToTray} onChange={(v) => set({ minimizeToTray: v })} />
                 </Row>
                 <Row title={t("settings.closeBehavior")}>
-                  <select className="select" style={{ width: 300 }} aria-label={t("settings.closeBehavior")} value={settings.closeBehavior} onChange={(e) => set({ closeBehavior: e.target.value as Settings["closeBehavior"] })}>
+                  <select className="select" style={{ width: "auto", minWidth: 300, maxWidth: 420 }} aria-label={t("settings.closeBehavior")} value={settings.closeBehavior} onChange={(e) => set({ closeBehavior: e.target.value as Settings["closeBehavior"] })}>
                     <option value="minimize_to_tray">{t("settings.closeMinimize")}</option>
                     <option value="exit">{t("settings.closeExit")}</option>
                   </select>

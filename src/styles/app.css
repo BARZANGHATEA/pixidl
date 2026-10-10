@@ -212,6 +212,7 @@ button { cursor: pointer; }
 
 .select, .input, .textarea {
   height: 38px; width: 100%; padding: 0 12px;
+  text-overflow: ellipsis;
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
   outline: none;
 }
